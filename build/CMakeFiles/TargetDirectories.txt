@@ -1,0 +1,3 @@
+/mnt/d/cpp-Project/build/CMakeFiles/bullethell.dir
+/mnt/d/cpp-Project/build/CMakeFiles/edit_cache.dir
+/mnt/d/cpp-Project/build/CMakeFiles/rebuild_cache.dir

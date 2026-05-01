@@ -1,164 +1,137 @@
 #include <SFML/Graphics.hpp>
 #include <algorithm>
-#include <cmath>
 #include <vector>
-
-// --- Структуры ---
-struct Bullet {
-    sf::CircleShape shape;
-    sf::Vector2f velocity;
-};
-
-struct Enemy {
-    sf::CircleShape shape;
-    float speed;
-    int hp;
-};
-
-// Вспомогательная функция для проверки столкновения двух кругов
-bool circlesOverlap(const sf::Vector2f& aPos, float aRad,
-                    const sf::Vector2f& bPos, float bRad) {
-    sf::Vector2f diff = aPos - bPos;
-    // Расстояние < сумма радиусов → пересечение
-    return std::hypot(diff.x, diff.y) < (aRad + bRad);
-}
+#include "Player.hpp"
+#include "Enemy.hpp"
+#include "Bullet.hpp"
+#include "Utils.hpp"
 
 int main() {
     const unsigned int WIDTH = 800;
     const unsigned int HEIGHT = 600;
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Isaac-like + Enemy");
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "OOP Bullet Hell - Modular");
     window.setFramerateLimit(60);
 
-    // Игрок
-    sf::CircleShape player(15.f);
-    player.setFillColor(sf::Color::Green);
-    player.setOrigin(player.getRadius(), player.getRadius());
-    player.setPosition(WIDTH / 2.f, HEIGHT / 2.f);
+    // Создание объектов
+    Player player(15.f, 250.f, 3, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
 
-    const float PLAYER_SPEED = 250.f;
+    std::vector<Enemy> enemies;
+    enemies.emplace_back(20.f, 120.f, 3, sf::Vector2f(100.f, 100.f));
+    enemies.emplace_back(20.f, 140.f, 2, sf::Vector2f(600.f, 400.f));
+
+    std::vector<Bullet> bullets;
+
     const float BULLET_SPEED = 400.f;
     const float SHOOT_COOLDOWN = 0.3f;
     float shootTimer = 0.f;
-
-    std::vector<Bullet> bullets;
-    std::vector<Enemy> enemies;
-
-    // Спавн первого врага
-    Enemy e;
-    e.shape.setRadius(20.f);
-    e.shape.setFillColor(sf::Color::Red);
-    e.shape.setOrigin(20.f, 20.f);
-    e.shape.setPosition(100.f, 100.f);
-    e.speed = 120.f;
-    e.hp = 3;
-    enemies.push_back(e);
 
     sf::Clock deltaClock;
 
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
-            if (event.type == sf::Event::Closed) window.close();
+            if (event.type == sf::Event::Closed)
+                window.close();
         }
 
         float dt = deltaClock.restart().asSeconds();
         shootTimer -= dt;
 
-        // 1. Движение игрока (WASD)
-        sf::Vector2f movement(0.f, 0.f);
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::W)) movement.y -= 1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::S)) movement.y += 1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::A)) movement.x -= 1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::D)) movement.x += 1.f;
+        // --- ВВОД (WASD) ---
+        sf::Vector2f moveInput(0.f, 0.f);
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::W)) moveInput.y -= 1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::S)) moveInput.y += 1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::A)) moveInput.x -= 1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::D)) moveInput.x += 1.f;
 
-        if (movement.x != 0.f || movement.y != 0.f)
-            movement /= std::hypot(movement.x, movement.y);
+        // Нормализация
+        if (moveInput.x != 0.f || moveInput.y != 0.f)
+            moveInput /= std::hypot(moveInput.x, moveInput.y);
 
-        player.move(movement * PLAYER_SPEED * dt);
+        // Обновление игрока
+        player.setMovementInput(moveInput);
+        player.update(dt);
 
-        // Ограничение игрока
+        // Ограничение границами
         float pr = player.getRadius();
-        sf::Vector2f pPos = player.getPosition();
-        pPos.x = std::clamp(pPos.x, pr, static_cast<float>(WIDTH - pr));
-        pPos.y = std::clamp(pPos.y, pr, static_cast<float>(HEIGHT - pr));
-        player.setPosition(pPos);
+        sf::Vector2f pos = player.getPosition();
+        pos.x = std::clamp(pos.x, pr, static_cast<float>(WIDTH - pr));
+        pos.y = std::clamp(pos.y, pr, static_cast<float>(HEIGHT - pr));
+        player.setPosition(pos);
 
-        // 2. Стрельба (Стрелки)
+        // --- СТРЕЛЬБА ---
         sf::Vector2f shootDir(0.f, 0.f);
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))    shootDir.y = -1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))  shootDir.y =  1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))  shootDir.x = -1.f;
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) shootDir.x =  1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::Up))    shootDir.y = -1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::Down))  shootDir.y =  1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::Left))  shootDir.x = -1.f;
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::Right)) shootDir.x =  1.f;
 
         if ((shootDir.x != 0.f || shootDir.y != 0.f) && shootTimer <= 0.f) {
             shootDir /= std::hypot(shootDir.x, shootDir.y);
-            Bullet b;
-            b.shape.setRadius(5.f);
-            b.shape.setFillColor(sf::Color::Yellow);
-            b.shape.setOrigin(5.f, 5.f);
-            b.shape.setPosition(pPos + shootDir * (pr + 8.f));
+
+            Bullet b(5.f, sf::Color::Yellow);
+            b.shape.setPosition(player.getPosition() + shootDir * (pr + 8.f));
             b.velocity = shootDir * BULLET_SPEED;
             bullets.push_back(b);
+
             shootTimer = SHOOT_COOLDOWN;
         }
 
-        // 3. Обновление пуль
+        // --- ОБНОВЛЕНИЕ ПУЛЬ ---
         for (auto it = bullets.begin(); it != bullets.end(); ) {
-            it->shape.move(it->velocity * dt);
-            sf::FloatRect bnd = it->shape.getGlobalBounds();
-            if (bnd.left + bnd.width < 0 || bnd.left > WIDTH ||
-                bnd.top + bnd.height < 0 || bnd.top > HEIGHT) {
+            it->update(dt);
+            if (it->isOffScreen(WIDTH, HEIGHT)) {
                 it = bullets.erase(it);
-            } else ++it;
+            } else {
+                ++it;
+            }
         }
 
-        // 4. Обновление врагов (ИИ преследования)
-        pPos = player.getPosition(); // Обновляем позицию игрока для расчетов
+        // --- ОБНОВЛЕНИЕ ВРАГОВ ---
+        sf::Vector2f pPos = player.getPosition();
         for (auto& enemy : enemies) {
-            sf::Vector2f toPlayer = pPos - enemy.shape.getPosition();
-            float dist = std::hypot(toPlayer.x, toPlayer.y);
-
-            // Двигаемся только если дистанция > 1 пикселя (защита от деления на 0 и дрожания)
-            if (dist > 1.f) {
-                sf::Vector2f dir = toPlayer / dist; // Нормализация
-                enemy.shape.move(dir * enemy.speed * dt);
-            }
+            enemy.chaseTarget(pPos, dt);
 
             // Столкновение Враг ↔ Игрок
-            if (circlesOverlap(enemy.shape.getPosition(), enemy.shape.getRadius(),
-                               pPos, player.getRadius())) {
-                // Простой отброс игрока (knockback)
-                sf::Vector2f pushDir = pPos - enemy.shape.getPosition();
-                if (std::hypot(pushDir.x, pushDir.y) > 0) {
-                    pushDir /= std::hypot(pushDir.x, pushDir.y);
-                    player.move(pushDir * 4.f);
+            if (checkCollision(enemy, player)) {
+                sf::Vector2f pushDir = pPos - enemy.getPosition();
+                float dist = std::hypot(pushDir.x, pushDir.y);
+                if (dist > 0.f) {
+                    pushDir /= dist;
+                    player.move(pushDir * 5.f);
                 }
             }
         }
 
-        // 5. Столкновение Пули ↔ Враги
+        // --- СТОЛКНОВЕНИЕ ПУЛИ ↔ ВРАГИ ---
         for (auto it = bullets.begin(); it != bullets.end(); ) {
             bool hit = false;
             for (auto eit = enemies.begin(); eit != enemies.end(); ) {
-                if (circlesOverlap(it->shape.getPosition(), it->shape.getRadius(),
-                                   eit->shape.getPosition(), eit->shape.getRadius())) {
-                    eit->hp--;
+                if (checkBulletCollision(it->shape, *eit)) {
+                    eit->takeDamage(1);
                     hit = true;
-                    if (eit->hp <= 0) {
-                        eit = enemies.erase(eit); // Удаляем мёртвого врага
-                    } else ++eit;
-                    break; // Пуля может поразить только одного врага
-                } else ++eit;
+                    if (!eit->isAlive()) {
+                        eit = enemies.erase(eit);
+                    } else {
+                        ++eit;
+                    }
+                    break;
+                } else {
+                    ++eit;
+                }
             }
-            if (hit) it = bullets.erase(it);
-            else ++it;
+            if (hit) {
+                it = bullets.erase(it);
+            } else {
+                ++it;
+            }
         }
 
-        // 6. Рендеринг
+        // --- РЕНДЕРИНГ ---
         window.clear(sf::Color(20, 20, 30));
-        window.draw(player);
+        player.draw(window);
         for (const auto& b : bullets) window.draw(b.shape);
-        for (const auto& e : enemies) window.draw(e.shape);
+        for (const auto& e : enemies) e.draw(window);
         window.display();
     }
 
