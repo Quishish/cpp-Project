@@ -11,6 +11,7 @@ add_executable(bullethell
     Player.cpp
     Enemy.cpp
     Bullet.cpp
+    ShooterEnemy.cpp
 )
 
 target_link_libraries(bullethell sfml-graphics sfml-window sfml-system)
