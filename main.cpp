@@ -93,6 +93,27 @@ int main() {
             }
         }
 
+        // ==========================================
+        // НОВОЕ: Разрешение столкновений Враг ↔ Враг
+        // ==========================================
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            for (size_t j = i + 1; j < enemies.size(); ++j) {
+                sf::Vector2f diff = enemies[i].getPosition() - enemies[j].getPosition();
+                float dist = std::hypot(diff.x, diff.y);
+                float minDist = enemies[i].getRadius() + enemies[j].getRadius();
+
+                // Если расстояние меньше суммы радиусов → есть пересечение
+                if (dist < minDist && dist > 0.001f) {
+                    float overlap = minDist - dist;          // Насколько глубоко зашли друг в друга
+                    sf::Vector2f dir = diff / dist;          // Единичный вектор от j к i
+
+                    // Расталкиваем обоих симметрично (по половине перекрытия)
+                    enemies[i].move(dir * overlap * 0.5f);
+                    enemies[j].move(-dir * overlap * 0.5f);
+                }
+            }
+        }
+
         // --- СТОЛКНОВЕНИЕ ПУЛИ ↔ ВРАГИ ---
         for (auto it = bullets.begin(); it != bullets.end(); ) {
             bool hit = false;
