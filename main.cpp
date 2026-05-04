@@ -120,10 +120,10 @@ int main() {
         if (state == GameState::Playing) {
             // 1. Ввод WASD
             sf::Vector2f moveInput(0.f, 0.f);
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::W)) moveInput.y -= 1.f;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::S)) moveInput.y += 1.f;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::A)) moveInput.x -= 1.f;
-            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Scan::D)) moveInput.x += 1.f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) moveInput.y -= 1.f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) moveInput.y += 1.f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) moveInput.x -= 1.f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) moveInput.x += 1.f;
             if (moveInput.x != 0.f || moveInput.y != 0.f) moveInput /= std::hypot(moveInput.x, moveInput.y);
             player.setMovementInput(moveInput);
             player.update(dt);
