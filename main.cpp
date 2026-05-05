@@ -53,9 +53,8 @@ int main() {
 
     // --- UI: Game Over экран ---
     sf::Font font;
-    // Поместите любой .ttf файл в папку с игрой (например, arial.ttf)
-    if (!font.loadFromFile("DejaVuSans.ttf")) {
-        std::cerr << "Ошибка: не найден файл шрифта 'arial.ttf'. Скачайте и положите в папку с игрой.\n";
+    if (!font.loadFromFile("resources/fonts/DejaVuSans.ttf")) {
+        std::cerr << "Ошибка: не найден файл шрифта 'resources/fonts/DejaVuSans.ttf'\n";
         return 1;
     }
 
