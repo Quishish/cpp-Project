@@ -38,6 +38,7 @@ int main() {
     window.setView(gameView);
 
     GameState state = GameState::Playing;
+    int selectedButton = 0; // 0 = Restart, 1 = Exit
     const int MAX_HP = 3;
 
     Player player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
@@ -78,13 +79,9 @@ int main() {
     goText.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f - 50.f);
     goText.setFillColor(sf::Color::Red);
 
-    // Кнопка Restart
     sf::RectangleShape restartBtn(sf::Vector2f(280.f, 50.f));
-    restartBtn.setFillColor(sf::Color(50, 50, 50, 200));
     restartBtn.setOrigin(140.f, 25.f);
     restartBtn.setPosition(GAME_WIDTH / 2.f - 160.f, GAME_HEIGHT / 2.f + 40.f);
-    restartBtn.setOutlineThickness(2.f);
-    restartBtn.setOutlineColor(sf::Color::White);
 
     sf::Text restartText("RESTART (R)", font, 18);
     sf::FloatRect resBounds = restartText.getLocalBounds();
@@ -92,13 +89,9 @@ int main() {
     restartText.setPosition(restartBtn.getPosition());
     restartText.setFillColor(sf::Color::White);
 
-    // Кнопка Exit
     sf::RectangleShape exitBtn(sf::Vector2f(280.f, 50.f));
-    exitBtn.setFillColor(sf::Color(50, 50, 50, 200));
     exitBtn.setOrigin(140.f, 25.f);
     exitBtn.setPosition(GAME_WIDTH / 2.f + 160.f, GAME_HEIGHT / 2.f + 40.f);
-    exitBtn.setOutlineThickness(2.f);
-    exitBtn.setOutlineColor(sf::Color::White);
 
     sf::Text exitText("EXIT (Esc)", font, 18);
     sf::FloatRect exitBounds = exitText.getLocalBounds();
@@ -108,6 +101,14 @@ int main() {
 
     sf::RectangleShape overlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     overlay.setFillColor(sf::Color(0, 0, 0, 180));
+
+    // Лямбда для быстрого обновления визуала кнопок
+    auto updateButtonVisuals = [](sf::RectangleShape& btn, sf::Text& txt, bool selected) {
+        btn.setOutlineColor(selected ? sf::Color::Yellow : sf::Color::White);
+        btn.setOutlineThickness(selected ? 3.f : 2.f);
+        btn.setFillColor(selected ? sf::Color(70, 70, 70, 200) : sf::Color(50, 50, 50, 200));
+        txt.setFillColor(selected ? sf::Color::Yellow : sf::Color::White);
+    };
 
     while (window.isOpen()) {
         sf::Event event;
@@ -119,29 +120,38 @@ int main() {
             }
 
             if (state == GameState::GameOver) {
-                bool clickedRestart = false;
-                bool clickedExit = false;
+                bool actionTriggered = false;
 
+                // Клавиатурная навигация
+                if (event.type == sf::Event::KeyPressed) {
+                    if (event.key.code == sf::Keyboard::Left)  selectedButton = 0;
+                    if (event.key.code == sf::Keyboard::Right) selectedButton = 1;
+                    if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return) actionTriggered = true;
+                    if (event.key.code == sf::Keyboard::R) { selectedButton = 0; actionTriggered = true; }
+                    if (event.key.code == sf::Keyboard::Escape) { selectedButton = 1; actionTriggered = true; }
+                }
+
+                // Мышь: наведение меняет фокус, клик активирует
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
                     sf::Vector2i mPos = sf::Mouse::getPosition(window);
                     sf::Vector2f worldPos = window.mapPixelToCoords(mPos, window.getView());
-                    if (restartBtn.getGlobalBounds().contains(worldPos)) clickedRestart = true;
-                    if (exitBtn.getGlobalBounds().contains(worldPos)) clickedExit = true;
-                }
-                if (event.type == sf::Event::KeyPressed) {
-                    if (event.key.code == sf::Keyboard::Key::R) clickedRestart = true;
-                    if (event.key.code == sf::Keyboard::Escape) clickedExit = true;
+                    if (restartBtn.getGlobalBounds().contains(worldPos)) selectedButton = 0;
+                    if (exitBtn.getGlobalBounds().contains(worldPos)) selectedButton = 1;
+                    actionTriggered = true;
                 }
 
-                if (clickedRestart) {
-                    state = GameState::Playing;
-                    player = Player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
-                    enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear();
-                    shootTimer = 0.f;
-                    spawnRegTimer.restart(); spawnShootTimer.restart();
-                }
-                if (clickedExit) {
-                    window.close();
+                // Выполнение действия
+                if (actionTriggered) {
+                    if (selectedButton == 0) {
+                        state = GameState::Playing;
+                        player = Player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
+                        enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear();
+                        shootTimer = 0.f;
+                        spawnRegTimer.restart(); spawnShootTimer.restart();
+                        selectedButton = 0; // Сброс выбора
+                    } else {
+                        window.close();
+                    }
                 }
             }
         }
@@ -279,6 +289,7 @@ int main() {
             if (player.getHP() <= 0) state = GameState::GameOver;
         }
 
+        // --- РЕНДЕРИНГ ---
         window.clear(sf::Color(20, 20, 30));
         for (const auto& b : pBullets) window.draw(b.shape);
         for (const auto& b : eBullets)   window.draw(b.shape);
@@ -294,6 +305,10 @@ int main() {
             else hpFg.setFillColor(sf::Color::Red);
             window.draw(hpBg); window.draw(hpFg);
         } else {
+            // Обновляем подсветку кнопок перед отрисовкой
+            updateButtonVisuals(restartBtn, restartText, selectedButton == 0);
+            updateButtonVisuals(exitBtn, exitText, selectedButton == 1);
+
             window.draw(overlay);
             window.draw(restartBtn); window.draw(restartText);
             window.draw(exitBtn);    window.draw(exitText);
