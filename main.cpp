@@ -184,14 +184,27 @@ int main() {
             resolveClump(shooters);
 
             // 6. Отталкивание игрока
-            for (const auto& e : enemies) if (checkCollision(player, e)) {
-                sf::Vector2f push = pPos - e.getPosition(); float d = std::hypot(push.x, push.y);
-                if (d > 0.f) player.move(push / d * 5.f);
-            }
-            for (const auto& s : shooters) if (checkCollision(player, s)) {
-                sf::Vector2f push = pPos - s.getPosition(); float d = std::hypot(push.x, push.y);
-                if (d > 0.f) player.move(push / d * 5.f);
-            }
+            const int CONTACT_DAMAGE = 1;  // урон за один контакт
+            const float CONTACT_COOLDOWN = 0.5f;  // задержка между тиками урона (сек)
+            static sf::Clock contactTimer;  // статический таймер
+            
+            auto applyContact = [&](Entity& enemy) {
+                if (checkCollision(player, enemy)) {
+                    // Отталкивание
+                    sf::Vector2f push = pPos - enemy.getPosition();
+                    float d = std::hypot(push.x, push.y);
+                    if (d > 0.f) player.move(push / d * 5.f);
+                    
+                    // Нанесение урона с кулдауном
+                    if (contactTimer.getElapsedTime().asSeconds() >= CONTACT_COOLDOWN) {
+                        player.takeDamage(CONTACT_DAMAGE);
+                        contactTimer.restart();
+                    }
+                }
+            };
+
+            for (auto& e : enemies) applyContact(e);
+            for (auto& s : shooters) applyContact(s);
 
             // 7. Коллизии пуль игрока с врагами
             for (auto it = pBullets.begin(); it != pBullets.end(); ) {
