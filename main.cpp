@@ -67,7 +67,7 @@ int main() {
     sf::Clock shieldTimer;
 
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
-    std::srand(std::chrono::steady_clock::now().time_since_epoch().count()); 
+    std::srand(std::chrono::steady_clock::now().time_since_epoch().count());
 
     // --- UI: HP Bar ---
     sf::RectangleShape hpBg(sf::Vector2f(200.f, 20.f));
@@ -248,7 +248,7 @@ int main() {
                     sf::Vector2f push = pPos - enemy.getPosition();
                     float d = std::hypot(push.x, push.y);
                     if (d > 0.f) player.move(push / d * 5.f);
-                    
+
                     // Урон — только если нет щита
                     if (!isInvulnerable) {
                         if (contactTimer.getElapsedTime().asSeconds() >= CONTACT_COOLDOWN) {

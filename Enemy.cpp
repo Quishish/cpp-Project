@@ -7,12 +7,18 @@ Enemy::Enemy(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
     speed = spd;
     hp = health;
 
-    shape.setSize(size);
-    shape.setFillColor(sf::Color::Red);
-    shape.setOrigin(size / 2.f);
+    // Пробуем загрузить спрайт
+    setSprite("resources/sprites/Enemy.png", size);
 
-    halfSize = size / 2.f;
-    shape.setPosition(pos);
+    // Если спрайт не загрузился — используем красный прямоугольник (резерв)
+    if (!sprite) {
+        shape.setSize(size);
+        shape.setFillColor(sf::Color::Red);
+        shape.setOrigin(size / 2.f);
+        halfSize = size / 2.f;
+    }
+
+    setPosition(pos);
 }
 
 void Enemy::update(float dt) {

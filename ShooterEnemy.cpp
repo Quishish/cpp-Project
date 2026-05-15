@@ -4,11 +4,17 @@
 const float PI = 3.1415926535f;
 
 ShooterEnemy::ShooterEnemy(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
-    : Enemy(size, spd, health, pos),  // ѕередаЄм size в базовый класс
+    : Enemy(size, spd, health, pos),  // —начала вызываем базовый конструктор
       shootTimer(2.0f), shootInterval(2.5f),
       bulletCount(12), bulletSpeed(200.f)
 {
-    shape.setFillColor(sf::Color::Magenta);
+    // ѕереопредел€ем спрайт дл€ стрел€ющего врага
+    setSprite("resources/sprites/ShooterEnemy.png", size);
+
+    // ≈сли спрайт не загрузилс€ Ч используем фиолетовый пр€моугольник
+    if (!sprite) {
+        shape.setFillColor(sf::Color::Magenta);
+    }
 }
 
 void ShooterEnemy::update(float dt, const sf::Vector2f& targetPos, std::vector<Bullet>& outBullets) {

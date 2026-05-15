@@ -1,17 +1,24 @@
 #include "Player.hpp"
+#include <cmath>
 
 Player::Player(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
-    : movementInput(0.f, 0.f)
-{
+    : movementInput(0.f, 0.f) {
+
     speed = spd;
     hp = health;
 
-    shape.setSize(size);
-    shape.setFillColor(sf::Color::Green);
-    shape.setOrigin(size / 2.f);  // Центр в середине квадрата
+    // Пробуем загрузить спрайт
+    setSprite("resources/sprites/Player.png", size);
 
-    halfSize = size / 2.f;        // Сохраняем для коллизий и границ
-    shape.setPosition(pos);
+    // Если спрайт не загрузился — настраиваем прямоугольник (резерв)
+    if (!sprite) {
+        shape.setSize(size);
+        shape.setFillColor(sf::Color::Green);
+        shape.setOrigin(size / 2.f);
+        halfSize = size / 2.f;
+    }
+
+    setPosition(pos);
 }
 
 void Player::update(float dt) {
