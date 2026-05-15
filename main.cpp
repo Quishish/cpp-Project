@@ -392,25 +392,23 @@ int main() {
                             int heal = it->getHealAmount();
                             int currentHp = player.getHP();
                             int newHp = std::min(currentHp + heal, MAX_HP);
-                            if (newHp > currentHp) player.takeDamage(-(newHp - currentHp));
+                            if (newHp > currentHp) {
+                                player.takeDamage(-(newHp - currentHp));  // лечение через отрицательный урон
+                            }
                             break;
                         }
                         case PowerUp::Type::Shield:
-                            isInvulnerable = true;
-                            shieldTimer.restart();
+                            isInvulnerable = true;      // активируем (или оставляем активным)
+                            shieldTimer.restart();      // ← КЛЮЧЕВОЕ: перезапускаем таймер
                             break;
                         case PowerUp::Type::Speed:
-                            if (!hasSpeedBoost) {  // не стакается, просто перезапускает таймер
-                                hasSpeedBoost = true;
-                                player.setSpeed(BASE_PLAYER_SPEED * BUFF_MULTIPLIER);
-                                speedTimer.restart();
-                            }
+                            hasSpeedBoost = true;       // активируем (или оставляем активным)
+                            player.setSpeed(BASE_PLAYER_SPEED * BUFF_MULTIPLIER);  // применяем скорость
+                            speedTimer.restart();       // ← КЛЮЧЕВОЕ: перезапускаем таймер
                             break;
                         case PowerUp::Type::RapidFire:
-                            if (!hasRapidFire) {
-                                hasRapidFire = true;
-                                rapidFireTimer.restart();
-                            }
+                            hasRapidFire = true;        // активируем (или оставляем активным)
+                            rapidFireTimer.restart();   // ← КЛЮЧЕВОЕ: перезапускаем таймер
                             break;
                     }
                     it = powerups.erase(it);
@@ -418,7 +416,6 @@ int main() {
                     ++it;
                 }
             }
-
             if (spawnRegTimer.getElapsedTime().asSeconds() >= SPAWN_REG_INTERVAL) {
                 spawnRegTimer.restart();
                 std::uniform_int_distribution<int> sideDist(0, 3);
