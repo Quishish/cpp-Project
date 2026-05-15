@@ -14,17 +14,39 @@
 enum class GameState { Playing, GameOver };
 
 int main() {
-    const unsigned int WIDTH = 800;
-    const unsigned int HEIGHT = 600;
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Bullet Hell - Rect Hitboxes");
+    // --- Логический размер карты (16:10, в 2.5 раза больше оригинала) ---
+    constexpr float GAME_WIDTH  = 1600.f;
+    constexpr float GAME_HEIGHT = 1000.f;
+    const sf::Vector2f GAME_SIZE(GAME_WIDTH, GAME_HEIGHT);
+
+    // --- Полноэкранный режим ---
+    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Bullet Hell - Fullscreen 16:10", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
+
+    // --- Настройка View (камера) с сохранением пропорций ---
+    sf::View gameView;
+    gameView.setSize(GAME_SIZE);
+    gameView.setCenter(GAME_SIZE / 2.f);
+
+    // Автоматический letterboxing: вычисляем область просмотра, чтобы избежать растягивания
+    auto updateViewport = [&]() {
+        sf::Vector2u winSize = window.getSize();
+        float winAspect = static_cast<float>(winSize.x) / winSize.y;
+        float gameAspect = GAME_WIDTH / GAME_HEIGHT;
+        float vpWidth = 1.f, vpHeight = 1.f;
+        if (winAspect > gameAspect) vpWidth = gameAspect / winAspect;
+        else vpHeight = winAspect / gameAspect;
+        gameView.setViewport(sf::FloatRect((1.f - vpWidth) / 2.f, (1.f - vpHeight) / 2.f, vpWidth, vpHeight));
+    };
+    updateViewport();
+    window.setView(gameView);
 
     // --- Состояние игры ---
     GameState state = GameState::Playing;
     const int MAX_HP = 3;
 
     // --- Игрок и пули ---
-    Player player({30.f, 30.f}, 250.f, MAX_HP, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
+    Player player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
     std::vector<Enemy> enemies;
     std::vector<ShooterEnemy> shooters;
     std::vector<Bullet> pBullets;
@@ -61,23 +83,23 @@ int main() {
     sf::Text goText("GAME OVER", font, 60);
     sf::FloatRect goBounds = goText.getLocalBounds();
     goText.setOrigin(goBounds.left + goBounds.width / 2.f, goBounds.top + goBounds.height / 2.f);
-    goText.setPosition(WIDTH / 2.f, HEIGHT / 2.f - 40.f);
+    goText.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f - 40.f);
     goText.setFillColor(sf::Color::Red);
 
     sf::Text restartText("RESTART (Click or Press R)", font, 18);
     sf::FloatRect resBounds = restartText.getLocalBounds();
     restartText.setOrigin(resBounds.left + resBounds.width / 2.f, resBounds.top + resBounds.height / 2.f);
-    restartText.setPosition(WIDTH / 2.f, HEIGHT / 2.f + 60.f);
+    restartText.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f + 60.f);
     restartText.setFillColor(sf::Color::White);
 
     sf::RectangleShape restartBtn(sf::Vector2f(280.f, 50.f));
     restartBtn.setFillColor(sf::Color(50, 50, 50, 200));
     restartBtn.setOrigin(140.f, 25.f);
-    restartBtn.setPosition(WIDTH / 2.f, HEIGHT / 2.f + 60.f);
+    restartBtn.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f + 60.f);
     restartBtn.setOutlineThickness(2.f);
     restartBtn.setOutlineColor(sf::Color::White);
 
-    sf::RectangleShape overlay(sf::Vector2f(WIDTH, HEIGHT));
+    sf::RectangleShape overlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     overlay.setFillColor(sf::Color(0, 0, 0, 180));
 
     while (window.isOpen()) {
@@ -85,11 +107,19 @@ int main() {
         while (window.pollEvent(event)) {
             if (event.type == sf::Event::Closed) window.close();
 
+            // Обновляем viewport при изменении размера окна (например, Alt+Enter)
+            if (event.type == sf::Event::Resized) {
+                updateViewport();
+                window.setView(gameView);
+            }
+
             if (state == GameState::GameOver) {
                 bool clickedRestart = false;
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
                     sf::Vector2i mPos = sf::Mouse::getPosition(window);
-                    if (restartBtn.getGlobalBounds().contains(mPos.x, mPos.y)) clickedRestart = true;
+                    // Конвертируем координаты мыши из экранных в игровые
+                    sf::Vector2f worldPos = window.mapPixelToCoords(mPos, window.getView());
+                    if (restartBtn.getGlobalBounds().contains(worldPos)) clickedRestart = true;
                 }
                 if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Key::R) {
                     clickedRestart = true;
@@ -97,14 +127,10 @@ int main() {
 
                 if (clickedRestart) {
                     state = GameState::Playing;
-                    player = Player({30.f, 30.f}, 250.f, MAX_HP, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
-                    enemies.clear();
-                    shooters.clear();
-                    pBullets.clear();
-                    eBullets.clear();
+                    player = Player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
+                    enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear();
                     shootTimer = 0.f;
-                    spawnRegTimer.restart();
-                    spawnShootTimer.restart();
+                    spawnRegTimer.restart(); spawnShootTimer.restart();
                 }
             }
         }
@@ -113,7 +139,7 @@ int main() {
         shootTimer -= dt;
 
         // ==========================================
-        // ЛОГИКА ИГРЫ (только в состоянии Playing)
+        // ЛОГИКА ИГРЫ
         // ==========================================
         if (state == GameState::Playing) {
             // 1. Ввод WASD
@@ -126,11 +152,11 @@ int main() {
             player.setMovementInput(moveInput);
             player.update(dt);
 
-            // Границы окна (с прямоугольными хитбоксами)
+            // Границы карты
             sf::Vector2f pPos = player.getPosition();
             sf::Vector2f hs = player.getHalfSize();
-            pPos.x = std::clamp(pPos.x, hs.x, static_cast<float>(WIDTH - hs.x));
-            pPos.y = std::clamp(pPos.y, hs.y, static_cast<float>(HEIGHT - hs.y));
+            pPos.x = std::clamp(pPos.x, hs.x, GAME_WIDTH - hs.x);
+            pPos.y = std::clamp(pPos.y, hs.y, GAME_HEIGHT - hs.y);
             player.setPosition(pPos);
 
             // 2. Стрельба игрока
@@ -142,7 +168,7 @@ int main() {
 
             if ((shootDir.x != 0.f || shootDir.y != 0.f) && shootTimer <= 0.f) {
                 shootDir /= std::hypot(shootDir.x, shootDir.y);
-                Bullet b({10.f, 10.f}, sf::Color::Yellow);  // Прямоугольная пуля 10x10
+                Bullet b({10.f, 10.f}, sf::Color::Yellow);
                 b.shape.setPosition(pPos + shootDir * (hs.x + 8.f));
                 b.velocity = shootDir * BULLET_SPEED;
                 pBullets.push_back(b);
@@ -152,11 +178,11 @@ int main() {
             // 3. Обновление пуль
             for (auto it = pBullets.begin(); it != pBullets.end(); ) {
                 it->update(dt);
-                if (it->isOffScreen(WIDTH, HEIGHT)) it = pBullets.erase(it); else ++it;
+                if (it->isOffScreen(GAME_WIDTH, GAME_HEIGHT)) it = pBullets.erase(it); else ++it;
             }
             for (auto it = eBullets.begin(); it != eBullets.end(); ) {
                 it->update(dt);
-                if (it->isOffScreen(WIDTH, HEIGHT)) it = eBullets.erase(it); else ++it;
+                if (it->isOffScreen(GAME_WIDTH, GAME_HEIGHT)) it = eBullets.erase(it); else ++it;
             }
 
             // 4. Враги
@@ -164,13 +190,12 @@ int main() {
             for (auto& e : enemies) e.chaseTarget(pPos, dt);
             for (auto& s : shooters) s.update(dt, pPos, eBullets);
 
-            // 5. Разделение врагов (anti-clump) — для прямоугольников
+            // 5. Разделение врагов (anti-clump)
             auto resolveClump = [&](auto& vec) {
                 for (size_t i = 0; i < vec.size(); ++i)
                     for (size_t j = i + 1; j < vec.size(); ++j) {
                         sf::Vector2f diff = vec[i].getPosition() - vec[j].getPosition();
                         float dist = std::hypot(diff.x, diff.y);
-                        // Мин. дистанция = сумма половин размеров по большей оси
                         float minD = std::max(vec[i].getHalfSize().x + vec[j].getHalfSize().x,
                                               vec[i].getHalfSize().y + vec[j].getHalfSize().y);
                         if (dist < minD && dist > 0.001f) {
@@ -181,10 +206,9 @@ int main() {
                         }
                     }
             };
-            resolveClump(enemies);
-            resolveClump(shooters);
+            resolveClump(enemies); resolveClump(shooters);
 
-            // 6. Отталкивание игрока + урон от контакта
+            // 6. Контактный урон и отталкивание
             const int CONTACT_DAMAGE = 1;
             const float CONTACT_COOLDOWN = 0.5f;
             static sf::Clock contactTimer;
@@ -203,7 +227,7 @@ int main() {
             for (auto& e : enemies) applyContact(e);
             for (auto& s : shooters) applyContact(s);
 
-            // 7. Коллизии пуль игрока с врагами (AABB через intersects)
+            // 7. Пули игрока → Враги
             for (auto it = pBullets.begin(); it != pBullets.end(); ) {
                 bool hit = false;
                 for (auto eit = enemies.begin(); eit != enemies.end(); ) {
@@ -224,7 +248,7 @@ int main() {
                 if (hit) it = pBullets.erase(it); else ++it;
             }
 
-            // 8. Коллизии вражеских пуль с игроком (AABB)
+            // 8. Пули врагов → Игрок
             for (auto it = eBullets.begin(); it != eBullets.end(); ) {
                 if (it->shape.getGlobalBounds().intersects(player.getGlobalBounds())) {
                     player.takeDamage(1);
@@ -232,14 +256,14 @@ int main() {
                 } else ++it;
             }
 
-            // 9. Спавн обычных врагов (прямоугольные размеры)
+            // 9. Спавн обычных врагов
             if (spawnRegTimer.getElapsedTime().asSeconds() >= SPAWN_REG_INTERVAL) {
                 spawnRegTimer.restart();
                 std::uniform_int_distribution<int> sideDist(0, 3);
-                std::uniform_real_distribution<float> xDist(0.f, WIDTH), yDist(0.f, HEIGHT);
-                float off = 40.f; sf::Vector2f sp;
-                switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={WIDTH+off,yDist(rng)}; break;
-                    case 2: sp={xDist(rng),HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
+                std::uniform_real_distribution<float> xDist(0.f, GAME_WIDTH), yDist(0.f, GAME_HEIGHT);
+                float off = 60.f; sf::Vector2f sp;
+                switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={GAME_WIDTH+off,yDist(rng)}; break;
+                    case 2: sp={xDist(rng),GAME_HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
                 float randSize = std::uniform_real_distribution<float>(30.f, 50.f)(rng);
                 enemies.emplace_back(sf::Vector2f(randSize, randSize),
                                      std::uniform_real_distribution<float>(100.f, 180.f)(rng),
@@ -250,14 +274,14 @@ int main() {
             if (spawnShootTimer.getElapsedTime().asSeconds() >= SPAWN_SHOOT_INTERVAL) {
                 spawnShootTimer.restart();
                 std::uniform_int_distribution<int> sideDist(0, 3);
-                std::uniform_real_distribution<float> xDist(0.f, WIDTH), yDist(0.f, HEIGHT);
-                float off = 50.f; sf::Vector2f sp;
-                switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={WIDTH+off,yDist(rng)}; break;
-                    case 2: sp={xDist(rng),HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
+                std::uniform_real_distribution<float> xDist(0.f, GAME_WIDTH), yDist(0.f, GAME_HEIGHT);
+                float off = 70.f; sf::Vector2f sp;
+                switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={GAME_WIDTH+off,yDist(rng)}; break;
+                    case 2: sp={xDist(rng),GAME_HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
                 shooters.emplace_back(sf::Vector2f(50.f, 50.f), 80.f, 5, sp);
             }
 
-            // 11. Проверка Game Over
+            // 11. Game Over
             if (player.getHP() <= 0) state = GameState::GameOver;
         }
 
