@@ -6,6 +6,7 @@ class PowerUp: public Entity {
 public:
     enum class Type {
         Medkit,
+        Shield
     };
 
     PowerUp(
@@ -20,6 +21,7 @@ public:
 
     Type getType() const;
     int getHealAmount() const;
+    float getDuration() const;
 
     static sf::Vector2f generateRandomPosition(
         const sf::Vector2u& windowSize,

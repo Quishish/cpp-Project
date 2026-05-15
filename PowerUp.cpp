@@ -16,9 +16,12 @@ PowerUp::PowerUp(float x, float y, Type type, float width, float height)
     shape.setPosition(x, y);
 
     // Визуальное оформление: золотой/жёлтый
-    shape.setFillColor(sf::Color(255, 215, 0));
-    shape.setOutlineColor(sf::Color(200, 150, 0));
-    shape.setOutlineThickness(2.0f);
+    if (type_ == Type::Medkit) {
+        shape.setFillColor(sf::Color(255, 215, 0));
+    } else {
+        shape.setFillColor(sf::Color(30, 144, 255));  // Синий для щита
+    }
+    hp = 1; speed = 0.f;
 
     // Инициализация полей базового класса
     hp = 1;
@@ -43,6 +46,10 @@ PowerUp::Type PowerUp::getType() const {
 // -------------------------------------------------------------------------
 int PowerUp::getHealAmount() const {
     return 1 + (std::rand() % 2);
+}
+
+float PowerUp::getDuration() const { 
+    return (type_ == Type::Shield) ? 3.0f : 0.0f; 
 }
 
 // -------------------------------------------------------------------------

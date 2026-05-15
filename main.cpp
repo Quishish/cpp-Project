@@ -58,11 +58,16 @@ int main() {
     const float SHOOT_COOLDOWN = 0.3f;
     float shootTimer = 0.f;
 
+    //переменные для павер-апов
     constexpr int MAX_POWERUPS = 2;
     constexpr float SPAWN_CHANCE_PER_FRAME = 0.002f;
     constexpr float MIN_SPAWN_DISTANCE = 150.0f;
+    constexpr float SHIELD_DURATION = 3.0f;
+    bool isInvulnerable = false;
+    sf::Clock shieldTimer;
 
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
+    std::srand(std::chrono::steady_clock::now().time_since_epoch().count()); 
 
     // --- UI: HP Bar ---
     sf::RectangleShape hpBg(sf::Vector2f(200.f, 20.f));
@@ -155,6 +160,8 @@ int main() {
                         shootTimer = 0.f;
                         spawnRegTimer.restart(); spawnShootTimer.restart();
                         selectedButton = 0; // Сброс выбора
+                        isInvulnerable = false; //сброс щита
+                        shieldTimer.restart();
                     } else {
                         window.close();
                     }
@@ -164,6 +171,10 @@ int main() {
 
         float dt = deltaClock.restart().asSeconds();
         shootTimer -= dt;
+
+        if (isInvulnerable && shieldTimer.getElapsedTime().asSeconds() >= SHIELD_DURATION) {
+            isInvulnerable = false;
+        }
 
         if (state == GameState::Playing) {
             sf::Vector2f moveInput(0.f, 0.f);
@@ -233,12 +244,17 @@ int main() {
             static sf::Clock contactTimer;
             auto applyContact = [&](Entity& enemy) {
                 if (checkCollision(player, enemy)) {
+                    // Отталкивание — работает ВСЕГДА, даже со щитом
                     sf::Vector2f push = pPos - enemy.getPosition();
                     float d = std::hypot(push.x, push.y);
                     if (d > 0.f) player.move(push / d * 5.f);
-                    if (contactTimer.getElapsedTime().asSeconds() >= CONTACT_COOLDOWN) {
-                        player.takeDamage(CONTACT_DAMAGE);
-                        contactTimer.restart();
+                    
+                    // Урон — только если нет щита
+                    if (!isInvulnerable) {
+                        if (contactTimer.getElapsedTime().asSeconds() >= CONTACT_COOLDOWN) {
+                            player.takeDamage(CONTACT_DAMAGE);
+                            contactTimer.restart();
+                        }
                     }
                 }
             };
@@ -266,7 +282,7 @@ int main() {
             }
 
             for (auto it = eBullets.begin(); it != eBullets.end(); ) {
-                if (it->shape.getGlobalBounds().intersects(player.getGlobalBounds())) {
+                if (!isInvulnerable && it->shape.getGlobalBounds().intersects(player.getGlobalBounds())) {
                     player.takeDamage(1);
                     it = eBullets.erase(it);
                 } else ++it;
@@ -275,19 +291,17 @@ int main() {
             // === COLLECT POWER-UPS ===
             for (auto it = powerups.begin(); it != powerups.end(); ) {
                 if (checkCollision(player, *it)) {
-                    int heal = it->getHealAmount();
-                    int currentHp = player.getHP();
-                    int newHp = std::min(currentHp + heal, MAX_HP);  // MAX_HP из вашего main()
-                    
-                    // Лечение через отрицательный урон (Entity::takeDamage делает hp -= dmg)
-                    if (newHp > currentHp) {
-                        player.takeDamage(-(newHp - currentHp));
+                    if (it->getType() == PowerUp::Type::Medkit) {
+                        int heal = it->getHealAmount();
+                        int currentHp = player.getHP();
+                        int newHp = std::min(currentHp + heal, MAX_HP);
+                        if (newHp > currentHp) player.takeDamage(-(newHp - currentHp));
+                    } else if (it->getType() == PowerUp::Type::Shield) {
+                        isInvulnerable = true;
+                        shieldTimer.restart();
                     }
-                    
                     it = powerups.erase(it);
-                } else {
-                    ++it;
-                }
+                } else ++it;
             }
 
             if (spawnRegTimer.getElapsedTime().asSeconds() >= SPAWN_REG_INTERVAL) {
@@ -313,14 +327,14 @@ int main() {
             }
 
             if (powerups.size() < MAX_POWERUPS) {
-                float roll = static_cast<float>(std::rand()) / RAND_MAX;
-                if (roll < SPAWN_CHANCE_PER_FRAME) {
+                std::uniform_real_distribution<float> chanceDist(0.f, 1.f);
+                if (chanceDist(rng) < SPAWN_CHANCE_PER_FRAME) {
                     sf::Vector2f spawnPos = PowerUp::generateRandomPosition(
-                        window.getSize(),
-                        player.getGlobalBounds(),
-                        MIN_SPAWN_DISTANCE
+                        window.getSize(), player.getGlobalBounds(), MIN_SPAWN_DISTANCE
                     );
-                    powerups.emplace_back(spawnPos.x, spawnPos.y, PowerUp::Type::Medkit);
+                    std::uniform_int_distribution<int> typeDist(0, 1);  // 0 = Medkit, 1 = Shield
+                    PowerUp::Type type = static_cast<PowerUp::Type>(typeDist(rng));
+                    powerups.emplace_back(spawnPos.x, spawnPos.y, type);
                 }
             }
 
