@@ -19,7 +19,7 @@ int main() {
     constexpr float GAME_HEIGHT = 1000.f;
     const sf::Vector2f GAME_SIZE(GAME_WIDTH, GAME_HEIGHT);
 
-    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Bullet Hell - Fullscreen 16:10", sf::Style::Fullscreen);
+    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Bullet Hell - Fullscreen 16:9", sf::Style::Fullscreen);
     window.setFramerateLimit(60);
 
     sf::View gameView;
@@ -86,12 +86,43 @@ int main() {
     hpFg.setFillColor(sf::Color::Green);
     hpFg.setPosition(20.f, 20.f);
 
+    sf::RectangleShape buffBarBg(sf::Vector2f(200.f, 12.f));
+    buffBarBg.setFillColor(sf::Color(40, 40, 40, 180));
+    buffBarBg.setPosition(20.f, 45.f);  // чуть ниже HP-бара
+
+    // Щит: синий
+    sf::RectangleShape shieldBar(sf::Vector2f(200.f, 12.f));
+    shieldBar.setFillColor(sf::Color(30, 144, 255));
+    shieldBar.setPosition(20.f, 45.f);
+
+    // Скорость: зелёный
+    sf::RectangleShape speedBar(sf::Vector2f(200.f, 12.f));
+    speedBar.setFillColor(sf::Color(50, 205, 50));
+    speedBar.setPosition(20.f, 60.f);  // ещё ниже
+
+    // Скорострельность: розовый
+    sf::RectangleShape rapidBar(sf::Vector2f(200.f, 12.f));
+    rapidBar.setFillColor(sf::Color(255, 105, 180));
+    rapidBar.setPosition(20.f, 75.f);
+
     // --- UI: Шрифт и тексты ---
     sf::Font font;
     if (!font.loadFromFile("resources/fonts/DejaVuSans.ttf")) {
         std::cerr << "Ошибка: не найден файл шрифта 'resources/fonts/DejaVuSans.ttf'\n";
         return 1;
     }
+
+        // Текстовые подписи (опционально)
+    sf::Text shieldLabel("SHIELD", font, 10);
+    shieldLabel.setPosition(25.f, 47.f);
+    shieldLabel.setFillColor(sf::Color::White);
+
+    sf::Text speedLabel("SPEED", font, 10);
+    speedLabel.setPosition(25.f, 62.f);
+    speedLabel.setFillColor(sf::Color::White);
+
+    sf::Text rapidLabel("RAPID", font, 10);
+    rapidLabel.setPosition(25.f, 77.f);
 
     sf::Text goText("GAME OVER", font, 60);
     sf::FloatRect goBounds = goText.getLocalBounds();
@@ -312,6 +343,47 @@ int main() {
                 } else ++it;
             }
 
+            if (isInvulnerable && shieldTimer.getElapsedTime().asSeconds() >= SHIELD_DURATION) {
+                isInvulnerable = false;
+            }
+            if (hasSpeedBoost && speedTimer.getElapsedTime().asSeconds() >= BUFF_DURATION) {
+                hasSpeedBoost = false;
+                player.setSpeed(BASE_PLAYER_SPEED);
+            }
+            if (hasRapidFire && rapidFireTimer.getElapsedTime().asSeconds() >= BUFF_DURATION) {
+                hasRapidFire = false;
+            }
+
+            // === UPDATE BUFF BARS ===
+            constexpr float BAR_MAX_WIDTH = 200.f;
+
+            // Щит
+            if (isInvulnerable) {
+                float elapsed = shieldTimer.getElapsedTime().asSeconds();
+                float ratio = 1.f - (elapsed / SHIELD_DURATION);
+                shieldBar.setSize(sf::Vector2f(BAR_MAX_WIDTH * std::max(0.f, ratio), 12.f));
+            } else {
+                shieldBar.setSize(sf::Vector2f(0.f, 12.f));  // скрыть
+            }
+
+            // Скорость
+            if (hasSpeedBoost) {
+                float elapsed = speedTimer.getElapsedTime().asSeconds();
+                float ratio = 1.f - (elapsed / BUFF_DURATION);
+                speedBar.setSize(sf::Vector2f(BAR_MAX_WIDTH * std::max(0.f, ratio), 12.f));
+            } else {
+                speedBar.setSize(sf::Vector2f(0.f, 12.f));
+            }
+
+            // Скорострельность
+            if (hasRapidFire) {
+                float elapsed = rapidFireTimer.getElapsedTime().asSeconds();
+                float ratio = 1.f - (elapsed / BUFF_DURATION);
+                rapidBar.setSize(sf::Vector2f(BAR_MAX_WIDTH * std::max(0.f, ratio), 12.f));
+            } else {
+                rapidBar.setSize(sf::Vector2f(0.f, 12.f));
+            }
+
             // === COLLECT POWER-UPS ===
             for (auto it = powerups.begin(); it != powerups.end(); ) {
                 if (checkCollision(player, *it)) {
@@ -403,6 +475,23 @@ int main() {
             else if (ratio > 0.3f) hpFg.setFillColor(sf::Color::Yellow);
             else hpFg.setFillColor(sf::Color::Red);
             window.draw(hpBg); window.draw(hpFg);
+            // === DRAW BUFF BARS ===
+            // Рисуем только если бафф активен (ширина > 0)
+            if (shieldBar.getSize().x > 0.f) {
+                window.draw(buffBarBg);  // общий фон
+                window.draw(shieldBar);
+                window.draw(shieldLabel);
+            }
+            if (speedBar.getSize().x > 0.f) {
+                window.draw(buffBarBg);  // можно один фон, если бары не перекрываются
+                window.draw(speedBar);
+                window.draw(speedLabel);
+            }
+            if (rapidBar.getSize().x > 0.f) {
+                window.draw(buffBarBg);
+                window.draw(rapidBar);
+                window.draw(rapidLabel);
+            }
         } else {
             // Обновляем подсветку кнопок перед отрисовкой
             updateButtonVisuals(restartBtn, restartText, selectedButton == 0);
