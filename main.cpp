@@ -59,12 +59,21 @@ int main() {
     float shootTimer = 0.f;
 
     //переменные для павер-апов
-    constexpr int MAX_POWERUPS = 2;
-    constexpr float SPAWN_CHANCE_PER_FRAME = 0.002f;
+    constexpr int MAX_POWERUPS = 4;                    // было 2
+    constexpr float SPAWN_CHANCE_PER_FRAME = 0.008f;   // было 0.002 (×4 чаще)
     constexpr float MIN_SPAWN_DISTANCE = 150.0f;
     constexpr float SHIELD_DURATION = 3.0f;
     bool isInvulnerable = false;
     sf::Clock shieldTimer;
+
+    bool hasSpeedBoost = false;
+    bool hasRapidFire = false;
+    sf::Clock speedTimer;
+    sf::Clock rapidFireTimer;
+    constexpr float BUFF_DURATION = 5.0f;
+    constexpr float BUFF_MULTIPLIER = 1.5f;
+    const float BASE_PLAYER_SPEED = 250.f;      // сохраните базовую скорость
+    const float BASE_SHOOT_COOLDOWN = 0.3f;     // сохраните базовый кулдаун
 
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
     std::srand(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -160,8 +169,13 @@ int main() {
                         shootTimer = 0.f;
                         spawnRegTimer.restart(); spawnShootTimer.restart();
                         selectedButton = 0; // Сброс выбора
-                        isInvulnerable = false; //сброс щита
+                        isInvulnerable = false;
+                        hasSpeedBoost = false;
+                        hasRapidFire = false;
                         shieldTimer.restart();
+                        speedTimer.restart();
+                        rapidFireTimer.restart();
+                        player.setSpeed(BASE_PLAYER_SPEED);
                     } else {
                         window.close();
                     }
@@ -171,6 +185,15 @@ int main() {
 
         float dt = deltaClock.restart().asSeconds();
         shootTimer -= dt;
+
+        // Проверка истечения баффов
+        if (hasSpeedBoost && speedTimer.getElapsedTime().asSeconds() >= BUFF_DURATION) {
+            hasSpeedBoost = false;
+            player.setSpeed(BASE_PLAYER_SPEED);  // восстанавливаем базовую скорость
+        }
+        if (hasRapidFire && rapidFireTimer.getElapsedTime().asSeconds() >= BUFF_DURATION) {
+            hasRapidFire = false;
+        }
 
         if (isInvulnerable && shieldTimer.getElapsedTime().asSeconds() >= SHIELD_DURATION) {
             isInvulnerable = false;
@@ -198,13 +221,14 @@ int main() {
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))  shootDir.x = -1.f;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right)) shootDir.x =  1.f;
 
+            float currentCooldown = hasRapidFire ? BASE_SHOOT_COOLDOWN / BUFF_MULTIPLIER : BASE_SHOOT_COOLDOWN;
             if ((shootDir.x != 0.f || shootDir.y != 0.f) && shootTimer <= 0.f) {
                 shootDir /= std::hypot(shootDir.x, shootDir.y);
                 Bullet b({10.f, 10.f}, sf::Color::Yellow);
                 b.shape.setPosition(pPos + shootDir * (hs.x + 8.f));
                 b.velocity = shootDir * BULLET_SPEED;
                 pBullets.push_back(b);
-                shootTimer = SHOOT_COOLDOWN;
+                shootTimer = currentCooldown;  // используем модифицированный кулдаун
             }
 
             for (auto it = pBullets.begin(); it != pBullets.end(); ) {
@@ -291,17 +315,36 @@ int main() {
             // === COLLECT POWER-UPS ===
             for (auto it = powerups.begin(); it != powerups.end(); ) {
                 if (checkCollision(player, *it)) {
-                    if (it->getType() == PowerUp::Type::Medkit) {
-                        int heal = it->getHealAmount();
-                        int currentHp = player.getHP();
-                        int newHp = std::min(currentHp + heal, MAX_HP);
-                        if (newHp > currentHp) player.takeDamage(-(newHp - currentHp));
-                    } else if (it->getType() == PowerUp::Type::Shield) {
-                        isInvulnerable = true;
-                        shieldTimer.restart();
+                    switch (it->getType()) {
+                        case PowerUp::Type::Medkit: {
+                            int heal = it->getHealAmount();
+                            int currentHp = player.getHP();
+                            int newHp = std::min(currentHp + heal, MAX_HP);
+                            if (newHp > currentHp) player.takeDamage(-(newHp - currentHp));
+                            break;
+                        }
+                        case PowerUp::Type::Shield:
+                            isInvulnerable = true;
+                            shieldTimer.restart();
+                            break;
+                        case PowerUp::Type::Speed:
+                            if (!hasSpeedBoost) {  // не стакается, просто перезапускает таймер
+                                hasSpeedBoost = true;
+                                player.setSpeed(BASE_PLAYER_SPEED * BUFF_MULTIPLIER);
+                                speedTimer.restart();
+                            }
+                            break;
+                        case PowerUp::Type::RapidFire:
+                            if (!hasRapidFire) {
+                                hasRapidFire = true;
+                                rapidFireTimer.restart();
+                            }
+                            break;
                     }
                     it = powerups.erase(it);
-                } else ++it;
+                } else {
+                    ++it;
+                }
             }
 
             if (spawnRegTimer.getElapsedTime().asSeconds() >= SPAWN_REG_INTERVAL) {
@@ -332,7 +375,7 @@ int main() {
                     sf::Vector2f spawnPos = PowerUp::generateRandomPosition(
                         window.getSize(), player.getGlobalBounds(), MIN_SPAWN_DISTANCE
                     );
-                    std::uniform_int_distribution<int> typeDist(0, 1);  // 0 = Medkit, 1 = Shield
+                    std::uniform_int_distribution<int> typeDist(0, 3);  // 0=Medkit, 1=Shield, 2=Speed, 3=RapidFire
                     PowerUp::Type type = static_cast<PowerUp::Type>(typeDist(rng));
                     powerups.emplace_back(spawnPos.x, spawnPos.y, type);
                 }

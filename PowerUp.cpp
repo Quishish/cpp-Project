@@ -1,60 +1,56 @@
+// powerUp.cpp
 #include "powerUp.hpp"
 #include <cstdlib>
 #include <cmath>
 
-// -------------------------------------------------------------------------
-// Конструктор
-// -------------------------------------------------------------------------
 PowerUp::PowerUp(float x, float y, Type type, float width, float height)
-    : Entity(),
-      type_(type),
-      baseSize_(width, height)
+    : Entity(), type_(type), baseSize_(width, height)
 {
-    // Настраиваем прямоугольный хитбокс через base-класс
     shape.setSize(baseSize_);
-    shape.setOrigin(baseSize_ / 2.0f);  // центр в центре
+    shape.setOrigin(baseSize_ / 2.0f);
     shape.setPosition(x, y);
+    shape.setOutlineThickness(2.0f);
 
-    // Визуальное оформление: золотой/жёлтый
-    if (type_ == Type::Medkit) {
-        shape.setFillColor(sf::Color(255, 215, 0));
-    } else {
-        shape.setFillColor(sf::Color(30, 144, 255));  // Синий для щита
+    switch (type_) {
+        case Type::Medkit:
+            shape.setFillColor(sf::Color(255, 215, 0));
+            shape.setOutlineColor(sf::Color(200, 150, 0));
+            break;
+        case Type::Shield:
+            shape.setFillColor(sf::Color(30, 144, 255));
+            shape.setOutlineColor(sf::Color(0, 100, 200));
+            break;
+        case Type::Speed:
+            shape.setFillColor(sf::Color(50, 205, 50));   // зелёный
+            shape.setOutlineColor(sf::Color(0, 150, 0));
+            break;
+        case Type::RapidFire:
+            shape.setFillColor(sf::Color(255, 105, 180));  // розовый
+            shape.setOutlineColor(sf::Color(200, 0, 100));
+            break;
     }
-    hp = 1; speed = 0.f;
-
-    // Инициализация полей базового класса
     hp = 1;
     speed = 0.0f;
 }
 
-// -------------------------------------------------------------------------
-// Обновление: визуальная пульсация (не влияет на хитбокс)
-// -------------------------------------------------------------------------
-void PowerUp::update(float dt) {
-    (void) dt;
-}
-// -------------------------------------------------------------------------
-// Геттер типа
-// -------------------------------------------------------------------------
-PowerUp::Type PowerUp::getType() const {
-    return type_;
+void PowerUp::update(float dt) { (void)dt; }
+
+PowerUp::Type PowerUp::getType() const { return type_; }
+int PowerUp::getHealAmount() const { return 1 + (std::rand() % 2); }
+
+float PowerUp::getDuration() const {
+    switch (type_) {
+        case Type::Shield: return 3.0f;
+        case Type::Speed:
+        case Type::RapidFire: return 5.0f;
+        default: return 0.0f;
+    }
 }
 
-// -------------------------------------------------------------------------
-// Геттер лечения: 1 или 2 случайно
-// -------------------------------------------------------------------------
-int PowerUp::getHealAmount() const {
-    return 1 + (std::rand() % 2);
+float PowerUp::getMultiplier() const {
+    return (type_ == Type::Speed || type_ == Type::RapidFire) ? 1.5f : 1.0f;
 }
 
-float PowerUp::getDuration() const { 
-    return (type_ == Type::Shield) ? 3.0f : 0.0f; 
-}
-
-// -------------------------------------------------------------------------
-// Генерация позиции: не слишком близко к игроку
-// -------------------------------------------------------------------------
 sf::Vector2f PowerUp::generateRandomPosition(
     const sf::Vector2u& windowSize,
     const sf::FloatRect& playerBounds,
@@ -62,27 +58,12 @@ sf::Vector2f PowerUp::generateRandomPosition(
 ) {
     sf::Vector2f pos;
     int attempts = 0;
-    const int maxAttempts = 30;
-
     do {
-        // Позиция с отступом от краёв окна
-        pos.x = 40.0f + static_cast<float>(std::rand()) / RAND_MAX *
-                (static_cast<float>(windowSize.x) - 80.0f);
-        pos.y = 40.0f + static_cast<float>(std::rand()) / RAND_MAX *
-                (static_cast<float>(windowSize.y) - 80.0f);
+        pos.x = 40.f + static_cast<float>(std::rand()) / RAND_MAX * (static_cast<float>(windowSize.x) - 80.f);
+        pos.y = 40.f + static_cast<float>(std::rand()) / RAND_MAX * (static_cast<float>(windowSize.y) - 80.f);
         attempts++;
-
-        // Центр игрока для проверки дистанции
-        sf::Vector2f playerCenter(
-            playerBounds.left + playerBounds.width / 2.0f,
-            playerBounds.top + playerBounds.height / 2.0f
-        );
-        float dist = std::hypot(pos.x - playerCenter.x, pos.y - playerCenter.y);
-
-        if (dist >= minDistance) {
-            break;
-        }
-    } while (attempts < maxAttempts);
-
+        sf::Vector2f pc(playerBounds.left + playerBounds.width/2.f, playerBounds.top + playerBounds.height/2.f);
+        if (std::hypot(pos.x - pc.x, pos.y - pc.y) >= minDistance) break;
+    } while (attempts < 30);
     return pos;
 }

@@ -5,7 +5,7 @@
 
 class Entity {
 protected:
-    std::shared_ptr<sf::Sprite> sprite;  // <-- Новое: опциональный спрайт
+    std::shared_ptr<sf::Sprite> sprite;  // <-- пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
     sf::RectangleShape shape;
     float speed;
     int hp;
@@ -17,17 +17,19 @@ public:
 
     virtual void update(float dt) = 0;
 
-    // Геттеры
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅ
     sf::Vector2f getPosition() const;
     sf::Vector2f getHalfSize() const;
     sf::FloatRect getGlobalBounds() const;
     int getHP() const;
     bool isAlive() const;
 
-    // Методы
-    void setSprite(const std::string& texturePath, sf::Vector2f size);  // <-- Новое
+    // пїЅпїЅпїЅпїЅпїЅпїЅ
+    void setSprite(const std::string& texturePath, sf::Vector2f size);  // <-- пїЅпїЅпїЅпїЅпїЅ
     void setPosition(const sf::Vector2f& pos);
     void move(const sf::Vector2f& offset);
     void takeDamage(int dmg);
     void draw(sf::RenderWindow& window) const;
+    void setSpeed(float newSpeed);
+    float getBaseSpeed() const { return speed; }
 };
