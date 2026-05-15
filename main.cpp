@@ -10,6 +10,7 @@
 #include "ShooterEnemy.hpp"
 #include "Bullet.hpp"
 #include "Utils.hpp"
+#include "powerUp.hpp"
 
 enum class GameState { Playing, GameOver };
 
@@ -46,6 +47,7 @@ int main() {
     std::vector<ShooterEnemy> shooters;
     std::vector<Bullet> pBullets;
     std::vector<Bullet> eBullets;
+    std::vector<PowerUp> powerups;
 
     sf::Clock deltaClock;
     sf::Clock spawnRegTimer;
@@ -55,6 +57,10 @@ int main() {
     const float BULLET_SPEED = 400.f;
     const float SHOOT_COOLDOWN = 0.3f;
     float shootTimer = 0.f;
+
+    constexpr int MAX_POWERUPS = 2;
+    constexpr float SPAWN_CHANCE_PER_FRAME = 0.002f;
+    constexpr float MIN_SPAWN_DISTANCE = 150.0f;
 
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
 
@@ -145,7 +151,7 @@ int main() {
                     if (selectedButton == 0) {
                         state = GameState::Playing;
                         player = Player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
-                        enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear();
+                        enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear(); powerups.clear();
                         shootTimer = 0.f;
                         spawnRegTimer.restart(); spawnShootTimer.restart();
                         selectedButton = 0; // Сброс выбора
@@ -220,6 +226,8 @@ int main() {
             };
             resolveClump(enemies); resolveClump(shooters);
 
+            for (auto& p : powerups) p.update(dt);
+
             const int CONTACT_DAMAGE = 1;
             const float CONTACT_COOLDOWN = 0.5f;
             static sf::Clock contactTimer;
@@ -264,6 +272,24 @@ int main() {
                 } else ++it;
             }
 
+            // === COLLECT POWER-UPS ===
+            for (auto it = powerups.begin(); it != powerups.end(); ) {
+                if (checkCollision(player, *it)) {
+                    int heal = it->getHealAmount();
+                    int currentHp = player.getHP();
+                    int newHp = std::min(currentHp + heal, MAX_HP);  // MAX_HP из вашего main()
+                    
+                    // Лечение через отрицательный урон (Entity::takeDamage делает hp -= dmg)
+                    if (newHp > currentHp) {
+                        player.takeDamage(-(newHp - currentHp));
+                    }
+                    
+                    it = powerups.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+
             if (spawnRegTimer.getElapsedTime().asSeconds() >= SPAWN_REG_INTERVAL) {
                 spawnRegTimer.restart();
                 std::uniform_int_distribution<int> sideDist(0, 3);
@@ -286,6 +312,21 @@ int main() {
                 shooters.emplace_back(sf::Vector2f(50.f, 50.f), 80.f, 5, sp);
             }
 
+            if (powerups.size() < MAX_POWERUPS) {
+                float roll = static_cast<float>(std::rand()) / RAND_MAX;
+                if (roll < SPAWN_CHANCE_PER_FRAME) {
+                    sf::Vector2f spawnPos = PowerUp::generateRandomPosition(
+                        window.getSize(),
+                        player.getGlobalBounds(),
+                        MIN_SPAWN_DISTANCE
+                    );
+                    powerups.emplace_back(spawnPos.x, spawnPos.y, PowerUp::Type::Medkit);
+                }
+            }
+
+
+
+
             if (player.getHP() <= 0) state = GameState::GameOver;
         }
 
@@ -295,6 +336,7 @@ int main() {
         for (const auto& b : eBullets)   window.draw(b.shape);
         for (const auto& e : enemies)    e.draw(window);
         for (const auto& s : shooters)   s.draw(window);
+        for (const auto& p : powerups) p.draw(window);
         player.draw(window);
 
         if (state == GameState::Playing) {

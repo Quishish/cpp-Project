@@ -12,6 +12,7 @@ add_executable(bullethell
     Enemy.cpp
     Bullet.cpp
     ShooterEnemy.cpp
+    PowerUp.cpp
 )
 
 #создание папки и копирование файлов, дальнейшие ресурсы добавляем так же
