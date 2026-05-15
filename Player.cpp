@@ -1,27 +1,23 @@
 #include "Player.hpp"
-#include <cmath>
 
-Player::Player(float radius, float spd, int health, sf::Vector2f pos)
-    : movementInput(0.f, 0.f) {
-
+Player::Player(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
+    : movementInput(0.f, 0.f)
+{
     speed = spd;
     hp = health;
-    shape.setRadius(radius);
+
+    shape.setSize(size);
     shape.setFillColor(sf::Color::Green);
-    shape.setOrigin(radius, radius);
+    shape.setOrigin(size / 2.f);  // ÷ентр в середине квадрата
+
+    halfSize = size / 2.f;        // —охран€ем дл€ коллизий и границ
     shape.setPosition(pos);
 }
 
 void Player::update(float dt) {
     if (movementInput.x != 0.f || movementInput.y != 0.f) {
-        // Ќормализаци€ уже сделана в setMovementInput
         move(movementInput * speed * dt);
     }
-}
-
-void Player::handleInput(float dt) {
-    // Ётот метод можно использовать дл€ внутренней обработки,
-    // но лучше задавать input извне (из main)
 }
 
 void Player::setMovementInput(const sf::Vector2f& input) {

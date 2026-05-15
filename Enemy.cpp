@@ -1,14 +1,17 @@
 #include "Enemy.hpp"
 #include <cmath>
 
-Enemy::Enemy(float radius, float spd, int health, sf::Vector2f pos)
-    : targetPosition(0.f, 0.f) {
-
+Enemy::Enemy(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
+    : targetPosition(0.f, 0.f)
+{
     speed = spd;
     hp = health;
-    shape.setRadius(radius);
+
+    shape.setSize(size);
     shape.setFillColor(sf::Color::Red);
-    shape.setOrigin(radius, radius);
+    shape.setOrigin(size / 2.f);
+
+    halfSize = size / 2.f;
     shape.setPosition(pos);
 }
 
@@ -22,7 +25,6 @@ void Enemy::chaseTarget(const sf::Vector2f& targetPos, float dt) {
     float dist = std::hypot(dir.x, dir.y);
 
     if (dist > 1.f) {
-        sf::Vector2f normalizedDir = dir / dist;
-        move(normalizedDir * speed * dt);
+        move(dir / dist * speed * dt);
     }
 }

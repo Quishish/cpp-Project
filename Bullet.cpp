@@ -1,14 +1,13 @@
 #include "Bullet.hpp"
 
-Bullet::Bullet(float radius, sf::Color color) {
-    shape.setRadius(radius);
+Bullet::Bullet(sf::Vector2f size, sf::Color color) {
+    shape.setSize(size);
     shape.setFillColor(color);
-    shape.setOrigin(radius, radius);
+    shape.setOrigin(size / 2.f);
+    halfSize = size / 2.f;
 }
 
-void Bullet::update(float dt) {
-    shape.move(velocity * dt);
-}
+void Bullet::update(float dt) { shape.move(velocity * dt); }
 
 bool Bullet::isOffScreen(unsigned int windowWidth, unsigned int windowHeight) const {
     sf::FloatRect bounds = shape.getGlobalBounds();

@@ -3,18 +3,16 @@
 
 const float PI = 3.1415926535f;
 
-ShooterEnemy::ShooterEnemy(float radius, float spd, int health, sf::Vector2f pos)
-    : Enemy(radius, spd, health, pos),
+ShooterEnemy::ShooterEnemy(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
+    : Enemy(size, spd, health, pos),  // Передаём size в базовый класс
       shootTimer(2.0f), shootInterval(2.5f),
       bulletCount(12), bulletSpeed(200.f)
 {
-    shape.setFillColor(sf::Color::Magenta); // Визуально отличаем от обычных врагов
+    shape.setFillColor(sf::Color::Magenta);
 }
 
 void ShooterEnemy::update(float dt, const sf::Vector2f& targetPos, std::vector<Bullet>& outBullets) {
-    // Наследуем поведение преследования из базового класса
     chaseTarget(targetPos, dt);
-
     shootTimer -= dt;
     if (shootTimer <= 0.f) {
         shootTimer = shootInterval;
@@ -24,14 +22,10 @@ void ShooterEnemy::update(float dt, const sf::Vector2f& targetPos, std::vector<B
 
 void ShooterEnemy::fire(std::vector<Bullet>& outBullets) {
     for (int i = 0; i < bulletCount; ++i) {
-        // Равномерно распределяем углы по кругу
         float angle = (i * 2.f * PI) / bulletCount;
-
-        Bullet b(5.f, sf::Color::Red);
+        Bullet b({10.f, 10.f}, sf::Color::Red); // Квадратная пуля
         b.shape.setPosition(getPosition());
-        // Вектор скорости = направление * скорость
         b.velocity = {std::cos(angle) * bulletSpeed, std::sin(angle) * bulletSpeed};
-
         outBullets.push_back(b);
     }
 }

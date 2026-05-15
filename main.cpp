@@ -16,7 +16,7 @@ enum class GameState { Playing, GameOver };
 int main() {
     const unsigned int WIDTH = 800;
     const unsigned int HEIGHT = 600;
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Bullet Hell - UI & Game Over");
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Bullet Hell - Rect Hitboxes");
     window.setFramerateLimit(60);
 
     // --- Состояние игры ---
@@ -24,7 +24,7 @@ int main() {
     const int MAX_HP = 3;
 
     // --- Игрок и пули ---
-    Player player(15.f, 250.f, MAX_HP, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
+    Player player({30.f, 30.f}, 250.f, MAX_HP, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
     std::vector<Enemy> enemies;
     std::vector<ShooterEnemy> shooters;
     std::vector<Bullet> pBullets;
@@ -86,7 +86,6 @@ int main() {
             if (event.type == sf::Event::Closed) window.close();
 
             if (state == GameState::GameOver) {
-                // Обработка рестарта
                 bool clickedRestart = false;
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
                     sf::Vector2i mPos = sf::Mouse::getPosition(window);
@@ -98,7 +97,7 @@ int main() {
 
                 if (clickedRestart) {
                     state = GameState::Playing;
-                    player = Player(15.f, 250.f, MAX_HP, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
+                    player = Player({30.f, 30.f}, 250.f, MAX_HP, sf::Vector2f(WIDTH / 2.f, HEIGHT / 2.f));
                     enemies.clear();
                     shooters.clear();
                     pBullets.clear();
@@ -127,11 +126,11 @@ int main() {
             player.setMovementInput(moveInput);
             player.update(dt);
 
-            // Границы
+            // Границы окна (с прямоугольными хитбоксами)
             sf::Vector2f pPos = player.getPosition();
-            float pr = player.getRadius();
-            pPos.x = std::clamp(pPos.x, pr, static_cast<float>(WIDTH - pr));
-            pPos.y = std::clamp(pPos.y, pr, static_cast<float>(HEIGHT - pr));
+            sf::Vector2f hs = player.getHalfSize();
+            pPos.x = std::clamp(pPos.x, hs.x, static_cast<float>(WIDTH - hs.x));
+            pPos.y = std::clamp(pPos.y, hs.y, static_cast<float>(HEIGHT - hs.y));
             player.setPosition(pPos);
 
             // 2. Стрельба игрока
@@ -143,8 +142,8 @@ int main() {
 
             if ((shootDir.x != 0.f || shootDir.y != 0.f) && shootTimer <= 0.f) {
                 shootDir /= std::hypot(shootDir.x, shootDir.y);
-                Bullet b(5.f, sf::Color::Yellow);
-                b.shape.setPosition(pPos + shootDir * (pr + 8.f));
+                Bullet b({10.f, 10.f}, sf::Color::Yellow);  // Прямоугольная пуля 10x10
+                b.shape.setPosition(pPos + shootDir * (hs.x + 8.f));
                 b.velocity = shootDir * BULLET_SPEED;
                 pBullets.push_back(b);
                 shootTimer = SHOOT_COOLDOWN;
@@ -165,13 +164,15 @@ int main() {
             for (auto& e : enemies) e.chaseTarget(pPos, dt);
             for (auto& s : shooters) s.update(dt, pPos, eBullets);
 
-            // 5. Разделение врагов (anti-clump)
+            // 5. Разделение врагов (anti-clump) — для прямоугольников
             auto resolveClump = [&](auto& vec) {
                 for (size_t i = 0; i < vec.size(); ++i)
                     for (size_t j = i + 1; j < vec.size(); ++j) {
                         sf::Vector2f diff = vec[i].getPosition() - vec[j].getPosition();
                         float dist = std::hypot(diff.x, diff.y);
-                        float minD = vec[i].getRadius() + vec[j].getRadius();
+                        // Мин. дистанция = сумма половин размеров по большей оси
+                        float minD = std::max(vec[i].getHalfSize().x + vec[j].getHalfSize().x,
+                                              vec[i].getHalfSize().y + vec[j].getHalfSize().y);
                         if (dist < minD && dist > 0.001f) {
                             float ov = minD - dist;
                             sf::Vector2f dir = diff / dist;
@@ -183,30 +184,26 @@ int main() {
             resolveClump(enemies);
             resolveClump(shooters);
 
-            // 6. Отталкивание игрока
-            const int CONTACT_DAMAGE = 1;  // урон за один контакт
-            const float CONTACT_COOLDOWN = 0.5f;  // задержка между тиками урона (сек)
-            static sf::Clock contactTimer;  // статический таймер
-            
+            // 6. Отталкивание игрока + урон от контакта
+            const int CONTACT_DAMAGE = 1;
+            const float CONTACT_COOLDOWN = 0.5f;
+            static sf::Clock contactTimer;
+
             auto applyContact = [&](Entity& enemy) {
                 if (checkCollision(player, enemy)) {
-                    // Отталкивание
                     sf::Vector2f push = pPos - enemy.getPosition();
                     float d = std::hypot(push.x, push.y);
                     if (d > 0.f) player.move(push / d * 5.f);
-                    
-                    // Нанесение урона с кулдауном
                     if (contactTimer.getElapsedTime().asSeconds() >= CONTACT_COOLDOWN) {
                         player.takeDamage(CONTACT_DAMAGE);
                         contactTimer.restart();
                     }
                 }
             };
-
             for (auto& e : enemies) applyContact(e);
             for (auto& s : shooters) applyContact(s);
 
-            // 7. Коллизии пуль игрока с врагами
+            // 7. Коллизии пуль игрока с врагами (AABB через intersects)
             for (auto it = pBullets.begin(); it != pBullets.end(); ) {
                 bool hit = false;
                 for (auto eit = enemies.begin(); eit != enemies.end(); ) {
@@ -227,39 +224,40 @@ int main() {
                 if (hit) it = pBullets.erase(it); else ++it;
             }
 
-            // 8. Коллизии вражеских пуль с игроком
+            // 8. Коллизии вражеских пуль с игроком (AABB)
             for (auto it = eBullets.begin(); it != eBullets.end(); ) {
-                sf::Vector2f bPos = it->shape.getPosition();
-                float dist = std::hypot(bPos.x - pPos.x, bPos.y - pPos.y);
-                if (dist < it->shape.getRadius() + player.getRadius()) {
+                if (it->shape.getGlobalBounds().intersects(player.getGlobalBounds())) {
                     player.takeDamage(1);
                     it = eBullets.erase(it);
                 } else ++it;
             }
 
-            // 9. Спавн
+            // 9. Спавн обычных врагов (прямоугольные размеры)
             if (spawnRegTimer.getElapsedTime().asSeconds() >= SPAWN_REG_INTERVAL) {
                 spawnRegTimer.restart();
-                std::uniform_int_distribution<int> sideDist(0, 3);
-                std::uniform_real_distribution<float> xDist(0.f, WIDTH), yDist(0.f, HEIGHT);
-                float off = 30.f; sf::Vector2f sp;
-                switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={WIDTH+off,yDist(rng)}; break;
-                    case 2: sp={xDist(rng),HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
-                enemies.emplace_back(std::uniform_real_distribution<float>(15.f,25.f)(rng),
-                                     std::uniform_real_distribution<float>(100.f,180.f)(rng),
-                                     std::uniform_int_distribution<int>(1,3)(rng), sp);
-            }
-            if (spawnShootTimer.getElapsedTime().asSeconds() >= SPAWN_SHOOT_INTERVAL) {
-                spawnShootTimer.restart();
                 std::uniform_int_distribution<int> sideDist(0, 3);
                 std::uniform_real_distribution<float> xDist(0.f, WIDTH), yDist(0.f, HEIGHT);
                 float off = 40.f; sf::Vector2f sp;
                 switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={WIDTH+off,yDist(rng)}; break;
                     case 2: sp={xDist(rng),HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
-                shooters.emplace_back(25.f, 80.f, 5, sp);
+                float randSize = std::uniform_real_distribution<float>(30.f, 50.f)(rng);
+                enemies.emplace_back(sf::Vector2f(randSize, randSize),
+                                     std::uniform_real_distribution<float>(100.f, 180.f)(rng),
+                                     std::uniform_int_distribution<int>(1, 3)(rng), sp);
             }
 
-            // 10. Проверка Game Over
+            // 10. Спавн стреляющих врагов
+            if (spawnShootTimer.getElapsedTime().asSeconds() >= SPAWN_SHOOT_INTERVAL) {
+                spawnShootTimer.restart();
+                std::uniform_int_distribution<int> sideDist(0, 3);
+                std::uniform_real_distribution<float> xDist(0.f, WIDTH), yDist(0.f, HEIGHT);
+                float off = 50.f; sf::Vector2f sp;
+                switch(sideDist(rng)) { case 0: sp={xDist(rng),-off}; break; case 1: sp={WIDTH+off,yDist(rng)}; break;
+                    case 2: sp={xDist(rng),HEIGHT+off}; break; case 3: sp={-off,yDist(rng)}; break; }
+                shooters.emplace_back(sf::Vector2f(50.f, 50.f), 80.f, 5, sp);
+            }
+
+            // 11. Проверка Game Over
             if (player.getHP() <= 0) state = GameState::GameOver;
         }
 
@@ -268,7 +266,6 @@ int main() {
         // ==========================================
         window.clear(sf::Color(20, 20, 30));
 
-        // Игровые объекты
         for (const auto& b : pBullets) window.draw(b.shape);
         for (const auto& b : eBullets)   window.draw(b.shape);
         for (const auto& e : enemies)    e.draw(window);
@@ -276,7 +273,6 @@ int main() {
         player.draw(window);
 
         if (state == GameState::Playing) {
-            // HP Bar
             float ratio = static_cast<float>(player.getHP()) / MAX_HP;
             hpFg.setSize(sf::Vector2f(200.f * ratio, 20.f));
             if (ratio > 0.6f) hpFg.setFillColor(sf::Color::Green);
@@ -285,7 +281,6 @@ int main() {
             window.draw(hpBg);
             window.draw(hpFg);
         } else {
-            // Game Over UI
             window.draw(overlay);
             window.draw(restartBtn);
             window.draw(goText);

@@ -6,8 +6,8 @@ sf::Vector2f Entity::getPosition() const {
     return shape.getPosition();
 }
 
-float Entity::getRadius() const {
-    return shape.getRadius();
+sf::Vector2f Entity::getHalfSize() const {
+    return halfSize;
 }
 
 sf::FloatRect Entity::getGlobalBounds() const {

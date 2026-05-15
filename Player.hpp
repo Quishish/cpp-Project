@@ -3,7 +3,7 @@
 
 class Player : public Entity {
 public:
-    Player(float radius, float spd, int health, sf::Vector2f pos);
+    Player(sf::Vector2f size, float spd, int health, sf::Vector2f pos);
 
     // Реализация виртуальной функции
     void update(float dt) override;

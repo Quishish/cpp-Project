@@ -1,15 +1,13 @@
 #pragma once
 #include "Entity.hpp"
-#include <cmath>
+#include "Bullet.hpp"
 
+// Коллизия между двумя прямоугольными сущностями
 inline bool checkCollision(const Entity& a, const Entity& b) {
-    sf::Vector2f diff = a.getPosition() - b.getPosition();
-    float distance = std::hypot(diff.x, diff.y);
-    return distance < (a.getRadius() + b.getRadius());
+    return a.getGlobalBounds().intersects(b.getGlobalBounds());
 }
 
-inline bool checkBulletCollision(const sf::CircleShape& bullet, const Entity& entity) {
-    sf::Vector2f diff = bullet.getPosition() - entity.getPosition();
-    float distance = std::hypot(diff.x, diff.y);
-    return distance < (bullet.getRadius() + entity.getRadius());
+// Коллизия пули с сущностью
+inline bool checkBulletCollision(const sf::RectangleShape& bullet, const Entity& entity) {
+    return bullet.getGlobalBounds().intersects(entity.getGlobalBounds());
 }

@@ -3,9 +3,10 @@
 
 class Entity {
 protected:
-    sf::CircleShape shape;
+    sf::RectangleShape shape;
     float speed;
     int hp;
+    sf::Vector2f halfSize;
 
 public:
     Entity();
@@ -16,6 +17,7 @@ public:
 
     // Геттеры
     sf::Vector2f getPosition() const;
+    sf::Vector2f getHalfSize() const;
     float getRadius() const;
     sf::FloatRect getGlobalBounds() const;
     int getHP() const;
