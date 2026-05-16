@@ -62,7 +62,7 @@ int main() {
     constexpr int MAX_POWERUPS = 4;                    // было 2
     constexpr float SPAWN_CHANCE_PER_FRAME = 0.008f;   // было 0.002 (×4 чаще)
     constexpr float MIN_SPAWN_DISTANCE = 150.0f;
-    constexpr float SHIELD_DURATION = 3.0f;
+    constexpr float SHIELD_DURATION = 5.0f;
     bool isInvulnerable = false;
     sf::Clock shieldTimer;
 
