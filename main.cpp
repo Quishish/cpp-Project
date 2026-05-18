@@ -39,10 +39,22 @@ int main() {
     updateViewport();
     window.setView(gameView);
 
+    sf::Texture bgTexture;
+    sf::Sprite bgSprite;
+    bool bgLoaded = bgTexture.loadFromFile("resources/sprites/Floor.png");
+    if (bgLoaded) {
+        bgSprite.setTexture(bgTexture);
+        sf::Vector2u texSize = bgTexture.getSize();
+        // Точно растягиваем под размер игрового мира
+        bgSprite.setScale(GAME_WIDTH / static_cast<float>(texSize.x),
+                          GAME_HEIGHT / static_cast<float>(texSize.y));
+        bgSprite.setPosition(0.f, 0.f);
+    }
+
     GameState state = GameState::MainMenu;  // ← Начинаем с меню, не с игры!
     int selectedButton = 0;  // для Game Over
     int menuSelected = 0;   // ← для MainMenu: 0=Start, 1=Exit
-    int pauseSelected = 0;     
+    int pauseSelected = 0;
     const int MAX_HP = 3;
 
     Player player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
@@ -218,7 +230,7 @@ int main() {
     // Заголовок паузы
     sf::Text pauseTitle("PAUSED", font, 72);
     sf::FloatRect pauseTitleBounds = pauseTitle.getLocalBounds();
-    pauseTitle.setOrigin(pauseTitleBounds.left + pauseTitleBounds.width / 2.f, 
+    pauseTitle.setOrigin(pauseTitleBounds.left + pauseTitleBounds.width / 2.f,
                         pauseTitleBounds.top + pauseTitleBounds.height / 2.f);
     pauseTitle.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f - 100.f);
     pauseTitle.setFillColor(sf::Color::Yellow);
@@ -233,7 +245,7 @@ int main() {
 
     sf::Text resumeText("RESUME", font, 18);
     sf::FloatRect resumeBounds = resumeText.getLocalBounds();
-    resumeText.setOrigin(resumeBounds.left + resumeBounds.width / 2.f, 
+    resumeText.setOrigin(resumeBounds.left + resumeBounds.width / 2.f,
                         resumeBounds.top + resumeBounds.height / 2.f);
     resumeText.setPosition(resumeBtn.getPosition());
     resumeText.setFillColor(sf::Color::White);
@@ -248,7 +260,7 @@ int main() {
 
     sf::Text pauseMenuText("MAIN MENU", font, 18);
     sf::FloatRect pauseMenuBounds = pauseMenuText.getLocalBounds();
-    pauseMenuText.setOrigin(pauseMenuBounds.left + pauseMenuBounds.width / 2.f, 
+    pauseMenuText.setOrigin(pauseMenuBounds.left + pauseMenuBounds.width / 2.f,
                             pauseMenuBounds.top + pauseMenuBounds.height / 2.f);
     pauseMenuText.setPosition(pauseMenuBtn.getPosition());
     pauseMenuText.setFillColor(sf::Color::White);
@@ -274,9 +286,9 @@ int main() {
     // Запустить трек по индексу из перемешанного плейлиста
     // -------------------------------------------------------------------------
     auto playShuffledTrack = [&](int index) -> bool {
-        if (index < 0 || index >= static_cast<int>(shuffledPlaylist.size())) 
+        if (index < 0 || index >= static_cast<int>(shuffledPlaylist.size()))
             return false;
-        
+
         backgroundMusic.stop();
         if (!backgroundMusic.openFromFile(shuffledPlaylist[index])) {
             std::cerr << "[Music] Failed to load: " << shuffledPlaylist[index] << "\n";
@@ -339,12 +351,12 @@ int main() {
                         }
                     }
                 }
-                
+
                 // Мышь: наведение + клик
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
                     sf::Vector2i mPos = sf::Mouse::getPosition(window);
                     sf::Vector2f worldPos = window.mapPixelToCoords(mPos, window.getView());
-                    
+
                     if (startBtn.getGlobalBounds().contains(worldPos)) {
                         menuSelected = 0;
                         state = GameState::Playing;
@@ -384,12 +396,12 @@ int main() {
                         }
                     }
                 }
-                
+
                 // Мышь: наведение + клик
                 if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
                     sf::Vector2i mPos = sf::Mouse::getPosition(window);
                     sf::Vector2f worldPos = window.mapPixelToCoords(mPos, window.getView());
-                    
+
                     if (resumeBtn.getGlobalBounds().contains(worldPos)) {
                         pauseSelected = 0;
                         state = GameState::Playing;
@@ -726,6 +738,7 @@ int main() {
 
         // --- РЕНДЕРИНГ ---
         window.clear(sf::Color(20, 20, 30));
+        if (bgLoaded) window.draw(bgSprite);
         for (const auto& b : pBullets) window.draw(b.shape);
         for (const auto& b : eBullets)   window.draw(b.shape);
         for (const auto& e : enemies)    e.draw(window);
@@ -754,18 +767,18 @@ int main() {
                 window.draw(rapidBar);
                 window.draw(rapidLabel);
             }
-    
+
         } else if (state == GameState::Paused) {
             // Обновляем визуал кнопок паузы
             updateButtonVisuals(resumeBtn, resumeText, pauseSelected == 0);
             updateButtonVisuals(pauseMenuBtn, pauseMenuText, pauseSelected == 1);
-            
+
             // Рисуем паузу поверх игры
             window.draw(pauseOverlay);
             window.draw(pauseTitle);
             window.draw(resumeBtn); window.draw(resumeText);
             window.draw(pauseMenuBtn); window.draw(pauseMenuText);
-            
+
         } else if (state == GameState::MainMenu) {
             // Ваш код отрисовки главного меню
             updateButtonVisuals(startBtn, startText, menuSelected == 0);
@@ -774,7 +787,7 @@ int main() {
             window.draw(menuTitle);
             window.draw(startBtn); window.draw(startText);
             window.draw(menuExitBtn); window.draw(menuExitText);
-            
+
         } else if (state == GameState::GameOver) {
             // Ваш код отрисовки Game Over
             updateButtonVisuals(restartBtn, restartText, selectedButton == 0);
