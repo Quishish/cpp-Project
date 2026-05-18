@@ -12,7 +12,7 @@
 #include "Utils.hpp"
 #include "powerUp.hpp"
 
-enum class GameState { MainMenu, Playing, GameOver };
+enum class GameState { MainMenu, Playing, Paused, GameOver };
 
 int main() {
     constexpr float GAME_WIDTH  = 1600.f;
@@ -40,7 +40,8 @@ int main() {
 
     GameState state = GameState::MainMenu;  // ← Начинаем с меню, не с игры!
     int selectedButton = 0;  // для Game Over
-    int menuSelected = 0;    // ← для MainMenu: 0=Start, 1=Exit
+    int menuSelected = 0;   // ← для MainMenu: 0=Start, 1=Exit
+    int pauseSelected = 0;     
     const int MAX_HP = 3;
 
     Player player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
@@ -196,6 +197,54 @@ int main() {
 
     // ============================================================================
 
+    // ============================================================================
+    // === UI: ПАУЗА (объявления переменных) ===
+    // ============================================================================
+
+    // Заголовок паузы
+    sf::Text pauseTitle("PAUSED", font, 72);
+    sf::FloatRect pauseTitleBounds = pauseTitle.getLocalBounds();
+    pauseTitle.setOrigin(pauseTitleBounds.left + pauseTitleBounds.width / 2.f, 
+                        pauseTitleBounds.top + pauseTitleBounds.height / 2.f);
+    pauseTitle.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f - 100.f);
+    pauseTitle.setFillColor(sf::Color::Yellow);
+
+    // Кнопка RESUME (верхняя)
+    sf::RectangleShape resumeBtn(sf::Vector2f(280.f, 50.f));
+    resumeBtn.setOrigin(140.f, 25.f);
+    resumeBtn.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f + 20.f);
+    resumeBtn.setOutlineThickness(2.f);
+    resumeBtn.setOutlineColor(sf::Color::White);
+    resumeBtn.setFillColor(sf::Color(50, 50, 50, 200));
+
+    sf::Text resumeText("RESUME", font, 18);
+    sf::FloatRect resumeBounds = resumeText.getLocalBounds();
+    resumeText.setOrigin(resumeBounds.left + resumeBounds.width / 2.f, 
+                        resumeBounds.top + resumeBounds.height / 2.f);
+    resumeText.setPosition(resumeBtn.getPosition());
+    resumeText.setFillColor(sf::Color::White);
+
+    // Кнопка MAIN MENU (нижняя)
+    sf::RectangleShape pauseMenuBtn(sf::Vector2f(280.f, 50.f));
+    pauseMenuBtn.setOrigin(140.f, 25.f);
+    pauseMenuBtn.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f + 90.f);
+    pauseMenuBtn.setOutlineThickness(2.f);
+    pauseMenuBtn.setOutlineColor(sf::Color::White);
+    pauseMenuBtn.setFillColor(sf::Color(50, 50, 50, 200));
+
+    sf::Text pauseMenuText("MAIN MENU", font, 18);
+    sf::FloatRect pauseMenuBounds = pauseMenuText.getLocalBounds();
+    pauseMenuText.setOrigin(pauseMenuBounds.left + pauseMenuBounds.width / 2.f, 
+                            pauseMenuBounds.top + pauseMenuBounds.height / 2.f);
+    pauseMenuText.setPosition(pauseMenuBtn.getPosition());
+    pauseMenuText.setFillColor(sf::Color::White);
+
+    // Оверлей для паузы (такой же как в меню)
+    sf::RectangleShape pauseOverlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
+    pauseOverlay.setFillColor(sf::Color(0, 0, 0, 180));
+
+    // ============================================================================
+
     sf::RectangleShape overlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     overlay.setFillColor(sf::Color(0, 0, 0, 180));
 
@@ -214,6 +263,16 @@ int main() {
             if (event.type == sf::Event::Resized) {
                 updateViewport();
                 window.setView(gameView);
+            }
+
+            if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape) {
+                if (state == GameState::Playing) {
+                    state = GameState::Paused;
+                    pauseSelected = 0;  // сброс выбора на RESUME
+                } else if (state == GameState::Paused) {
+                    state = GameState::Playing;
+                }
+                // В MainMenu и GameOver ESC уже обрабатывается в их блоках
             }
 
             // === ОБРАБОТКА: ГЛАВНОЕ МЕНЮ ===
@@ -248,6 +307,58 @@ int main() {
                     if (menuExitBtn.getGlobalBounds().contains(worldPos)) {
                         menuSelected = 1;
                         window.close();
+                    }
+                }
+            }
+
+            // === ОБРАБОТКА: ПАУЗА ===
+            if (state == GameState::Paused) {
+                // Клавиатурная навигация
+                if (event.type == sf::Event::KeyPressed) {
+                    if (event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::Left) {
+                        pauseSelected = 0;  // RESUME
+                    }
+                    if (event.key.code == sf::Keyboard::Down || event.key.code == sf::Keyboard::Right) {
+                        pauseSelected = 1;  // MAIN MENU
+                    }
+                    // Активация: Enter, пробел или P
+                    if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return || event.key.code == sf::Keyboard::Space) {
+                        if (pauseSelected == 0) {
+                            state = GameState::Playing;  // Продолжить
+                        } else {
+                            state = GameState::MainMenu; // В главное меню
+                            // Сброс игровых переменных при выходе в меню
+                            player = Player({30.f, 30.f}, BASE_PLAYER_SPEED, MAX_HP, GAME_SIZE / 2.f);
+                            enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear(); powerups.clear();
+                            shootTimer = 0.f;
+                            spawnRegTimer.restart(); spawnShootTimer.restart();
+                            isInvulnerable = false; hasSpeedBoost = false; hasRapidFire = false;
+                            shieldTimer.restart(); speedTimer.restart(); rapidFireTimer.restart();
+                            player.setSpeed(BASE_PLAYER_SPEED);
+                        }
+                    }
+                }
+                
+                // Мышь: наведение + клик
+                if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                    sf::Vector2i mPos = sf::Mouse::getPosition(window);
+                    sf::Vector2f worldPos = window.mapPixelToCoords(mPos, window.getView());
+                    
+                    if (resumeBtn.getGlobalBounds().contains(worldPos)) {
+                        pauseSelected = 0;
+                        state = GameState::Playing;
+                    }
+                    if (pauseMenuBtn.getGlobalBounds().contains(worldPos)) {
+                        pauseSelected = 1;
+                        state = GameState::MainMenu;
+                        // Сброс игровых переменных (как выше)
+                        player = Player({30.f, 30.f}, BASE_PLAYER_SPEED, MAX_HP, GAME_SIZE / 2.f);
+                        enemies.clear(); shooters.clear(); pBullets.clear(); eBullets.clear(); powerups.clear();
+                        shootTimer = 0.f;
+                        spawnRegTimer.restart(); spawnShootTimer.restart();
+                        isInvulnerable = false; hasSpeedBoost = false; hasRapidFire = false;
+                        shieldTimer.restart(); speedTimer.restart(); rapidFireTimer.restart();
+                        player.setSpeed(BASE_PLAYER_SPEED);
                     }
                 }
             }
@@ -569,19 +680,29 @@ int main() {
                 window.draw(rapidBar);
                 window.draw(rapidLabel);
             }
+    
+        } else if (state == GameState::Paused) {
+            // Обновляем визуал кнопок паузы
+            updateButtonVisuals(resumeBtn, resumeText, pauseSelected == 0);
+            updateButtonVisuals(pauseMenuBtn, pauseMenuText, pauseSelected == 1);
+            
+            // Рисуем паузу поверх игры
+            window.draw(pauseOverlay);
+            window.draw(pauseTitle);
+            window.draw(resumeBtn); window.draw(resumeText);
+            window.draw(pauseMenuBtn); window.draw(pauseMenuText);
+            
         } else if (state == GameState::MainMenu) {
-            // Обновляем визуал кнопок
+            // Ваш код отрисовки главного меню
             updateButtonVisuals(startBtn, startText, menuSelected == 0);
             updateButtonVisuals(menuExitBtn, menuExitText, menuSelected == 1);
-            
-            // Рисуем меню
             window.draw(menuOverlay);
             window.draw(menuTitle);
             window.draw(startBtn); window.draw(startText);
             window.draw(menuExitBtn); window.draw(menuExitText);
             
         } else if (state == GameState::GameOver) {
-            // Ваш существующий код отрисовки Game Over
+            // Ваш код отрисовки Game Over
             updateButtonVisuals(restartBtn, restartText, selectedButton == 0);
             updateButtonVisuals(exitBtn, exitText, selectedButton == 1);
             window.draw(overlay);
