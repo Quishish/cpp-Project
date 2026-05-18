@@ -8,26 +8,23 @@ static std::map<std::string, std::shared_ptr<sf::Texture>> textureCache;
 Entity::Entity() : speed(0.f), hp(1), halfSize(0.f, 0.f) {}
 
 void Entity::setSprite(const std::string& texturePath, sf::Vector2f size) {
-    // �������� ��������
     if (textureCache.find(texturePath) == textureCache.end()) {
         auto tex = std::make_shared<sf::Texture>();
         if (!tex->loadFromFile(texturePath)) {
-            std::cerr << "�� ������� ���������: " << texturePath << std::endl;
+            std::cerr << "⚠️ Не удалось загрузить: " << texturePath << std::endl;
             return;
         }
         textureCache[texturePath] = tex;
     }
 
-    // ������ ������
     sprite = std::make_shared<sf::Sprite>(*textureCache[texturePath]);
-
-    // ������������ ��� ������ ������
     sf::Vector2f texSize = sprite->getLocalBounds().getSize();
     sprite->setScale(size.x / texSize.x, size.y / texSize.y);
-
-    // Origin � ������ + ��������� halfSize ��� ��������
     sprite->setOrigin(size / 2.f);
     halfSize = size / 2.f;
+
+    // ✅ КЛЮЧЕВОЕ: копируем позицию из shape в новый спрайт
+    sprite->setPosition(shape.getPosition());
 }
 
 sf::Vector2f Entity::getPosition() const {
@@ -48,8 +45,8 @@ int Entity::getHP() const { return hp; }
 bool Entity::isAlive() const { return hp > 0; }
 
 void Entity::setPosition(const sf::Vector2f& pos) {
-    if (sprite) sprite->setPosition(pos);
-    else shape.setPosition(pos);
+    shape.setPosition(pos);          // Обновляем всегда (для коллизий)
+    if (sprite) sprite->setPosition(pos); // Обновляем спрайт, если он есть
 }
 
 void Entity::move(const sf::Vector2f& offset) {

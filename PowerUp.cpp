@@ -1,40 +1,62 @@
-// powerUp.cpp
 #include "powerUp.hpp"
 #include <cstdlib>
 #include <cmath>
+#include <string>
 
+// -------------------------------------------------------------------------
+// Конструктор
+// -------------------------------------------------------------------------
 PowerUp::PowerUp(float x, float y, Type type, float width, float height)
-    : Entity(), type_(type), baseSize_(width, height)
-{
+: Entity(), type_(type), baseSize_(width, height) {
+    // 1. Настраиваем прямоугольник-заглушку (fallback)
     shape.setSize(baseSize_);
     shape.setOrigin(baseSize_ / 2.0f);
     shape.setPosition(x, y);
     shape.setOutlineThickness(2.0f);
 
+    // 2. Определяем путь к спрайту и цвета
+    std::string spritePath;
+    sf::Color fillColor, outlineColor;
+
     switch (type_) {
         case Type::Medkit:
-            shape.setFillColor(sf::Color(255, 215, 0));
-            shape.setOutlineColor(sf::Color(200, 150, 0));
+            spritePath = "resources/sprites/Health.png";
+            fillColor = sf::Color(255, 215, 0);   // Золотой
+            outlineColor = sf::Color(200, 150, 0);
             break;
         case Type::Shield:
-            shape.setFillColor(sf::Color(30, 144, 255));
-            shape.setOutlineColor(sf::Color(0, 100, 200));
+            spritePath = "resources/sprites/Shield.png";
+            fillColor = sf::Color(30, 144, 255);  // Синий
+            outlineColor = sf::Color(0, 100, 200);
             break;
         case Type::Speed:
-            shape.setFillColor(sf::Color(50, 205, 50));   // зелёный
-            shape.setOutlineColor(sf::Color(0, 150, 0));
+            spritePath = "resources/sprites/PowerUp_Speed.png";
+            fillColor = sf::Color(50, 205, 50);   // Зелёный
+            outlineColor = sf::Color(0, 150, 0);
             break;
         case Type::RapidFire:
-            shape.setFillColor(sf::Color(255, 105, 180));  // розовый
-            shape.setOutlineColor(sf::Color(200, 0, 100));
+            spritePath = "resources/sprites/PowerUp_RapidFire.png";
+            fillColor = sf::Color(255, 105, 180); // Розовый
+            outlineColor = sf::Color(200, 0, 100);
             break;
     }
+
+    shape.setFillColor(fillColor);
+    shape.setOutlineColor(outlineColor);
+
+    // 3. Пытаемся загрузить спрайт через базовый класс
+    // setSprite() сам масштабирует текстуру под baseSize_ и установит origin в центр
+    setSprite(spritePath, baseSize_);
+
+    // Инициализация полей Entity
     hp = 1;
     speed = 0.0f;
 }
 
+// -------------------------------------------------------------------------
+// Остальные методы без изменений
+// -------------------------------------------------------------------------
 void PowerUp::update(float dt) { (void)dt; }
-
 PowerUp::Type PowerUp::getType() const { return type_; }
 int PowerUp::getHealAmount() const { return 1 + (std::rand() % 2); }
 
