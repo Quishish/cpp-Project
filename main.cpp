@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -79,6 +80,19 @@ int main() {
 
     std::mt19937 rng(std::chrono::steady_clock::now().time_since_epoch().count());
     std::srand(std::chrono::steady_clock::now().time_since_epoch().count());
+
+    // === MUSIC SYSTEM ===
+    std::vector<std::string> musicPlaylist = {
+        "resources/music/track1.mp3",
+        "resources/music/track2.mp3",
+        "resources/music/track3.mp3",
+        "resources/music/track4.mp3"
+    };
+    std::vector<std::string> shuffledPlaylist;  // перемешанная версия
+    sf::Music backgroundMusic;
+    int currentTrackIndex = 0;
+    bool musicPlaying = false;
+    constexpr float MUSIC_VOLUME = 100.f;  // громкость 0-100
 
     // --- UI: HP Bar ---
     sf::RectangleShape hpBg(sf::Vector2f(200.f, 20.f));
@@ -256,6 +270,37 @@ int main() {
         txt.setFillColor(selected ? sf::Color::Yellow : sf::Color::White);
     };
 
+    // -------------------------------------------------------------------------
+    // Запустить трек по индексу из перемешанного плейлиста
+    // -------------------------------------------------------------------------
+    auto playShuffledTrack = [&](int index) -> bool {
+        if (index < 0 || index >= static_cast<int>(shuffledPlaylist.size())) 
+            return false;
+        
+        backgroundMusic.stop();
+        if (!backgroundMusic.openFromFile(shuffledPlaylist[index])) {
+            std::cerr << "[Music] Failed to load: " << shuffledPlaylist[index] << "\n";
+            return false;
+        }
+        backgroundMusic.setLoop(false);       // не зацикливать — переключим на следующий
+        backgroundMusic.setVolume(MUSIC_VOLUME);
+        backgroundMusic.play();
+        return true;
+    };
+
+    // -------------------------------------------------------------------------
+    // Перемешать плейлист и запустить первый трек
+    // -------------------------------------------------------------------------
+    auto startRandomMusic = [&]() {
+        shuffledPlaylist = musicPlaylist;  // копируем оригинал
+        std::shuffle(shuffledPlaylist.begin(), shuffledPlaylist.end(), rng);  // ← перемешиваем
+        currentTrackIndex = 0;
+        musicPlaying = playShuffledTrack(currentTrackIndex);
+        if (musicPlaying) {
+            std::cout << "[Music] Started random playlist: " << shuffledPlaylist[currentTrackIndex] << "\n";
+        }
+    };
+
     while (window.isOpen()) {
         sf::Event event;
         while (window.pollEvent(event)) {
@@ -335,6 +380,7 @@ int main() {
                             isInvulnerable = false; hasSpeedBoost = false; hasRapidFire = false;
                             shieldTimer.restart(); speedTimer.restart(); rapidFireTimer.restart();
                             player.setSpeed(BASE_PLAYER_SPEED);
+                            startRandomMusic();
                         }
                     }
                 }
@@ -411,6 +457,18 @@ int main() {
         float dt = deltaClock.restart().asSeconds();
         shootTimer -= dt;
 
+        // === MUSIC: переключение трека, если текущий закончился ===
+        if (state == GameState::Playing && musicPlaying) {
+            if (backgroundMusic.getStatus() != sf::SoundSource::Playing) {
+                // Текущий трек закончился — следующий из перемешанного списка
+                currentTrackIndex = (currentTrackIndex + 1) % shuffledPlaylist.size();
+                musicPlaying = playShuffledTrack(currentTrackIndex);
+                if (musicPlaying) {
+                    std::cout << "[Music] Next track: " << shuffledPlaylist[currentTrackIndex] << "\n";
+                }
+            }
+        }
+
         // Проверка истечения баффов
         if (hasSpeedBoost && speedTimer.getElapsedTime().asSeconds() >= BUFF_DURATION) {
             hasSpeedBoost = false;
@@ -424,7 +482,23 @@ int main() {
             isInvulnerable = false;
         }
 
+        // === MUSIC: управление по состоянию игры ===
         if (state == GameState::Playing) {
+            if (musicPlaying && backgroundMusic.getStatus() == sf::SoundSource::Paused) {
+                backgroundMusic.play();  // возобновить после паузы
+            }
+        } else {
+            // Меню, Game Over — ставим на паузу (не stop, чтобы сохранить позицию)
+            if (musicPlaying && backgroundMusic.getStatus() == sf::SoundSource::Playing) {
+                backgroundMusic.pause();
+            }
+        }
+
+        if (state == GameState::Playing) {
+            // После строки: state = GameState::Playing;
+            if (!musicPlaying) {
+                startRandomMusic();  // ← перемешать и запустить при первом входе в игру
+            }
             sf::Vector2f moveInput(0.f, 0.f);
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) moveInput.y -= 1.f;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) moveInput.y += 1.f;

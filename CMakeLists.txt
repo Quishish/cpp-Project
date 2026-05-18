@@ -16,7 +16,7 @@ add_executable(bullethell
     PowerUp.cpp
 )
 
-target_link_libraries(bullethell sfml-graphics sfml-window sfml-system)
+target_link_libraries(bullethell sfml-graphics sfml-window sfml-system sfml-audio)
 
 # ==========================================
 # АВТОМАТИЧЕСКОЕ КОПИРОВАНИЕ РЕСУРСОВ
