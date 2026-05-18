@@ -30,12 +30,12 @@ PowerUp::PowerUp(float x, float y, Type type, float width, float height)
             outlineColor = sf::Color(0, 100, 200);
             break;
         case Type::Speed:
-            spritePath = "resources/sprites/PowerUp_Speed.png";
+            spritePath = "resources/sprites/Speed.png";
             fillColor = sf::Color(50, 205, 50);   // Зелёный
             outlineColor = sf::Color(0, 150, 0);
             break;
         case Type::RapidFire:
-            spritePath = "resources/sprites/PowerUp_RapidFire.png";
+            spritePath = "resources/sprites/Rapid.png";
             fillColor = sf::Color(255, 105, 180); // Розовый
             outlineColor = sf::Color(200, 0, 100);
             break;
