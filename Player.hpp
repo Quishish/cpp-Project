@@ -5,10 +5,10 @@ class Player : public Entity {
 public:
     Player(sf::Vector2f size, float spd, int health, sf::Vector2f pos);
 
-    // Реализация виртуальной функции
+
     void update(float dt) override;
 
-    // Специфичные для игрока методы
+
     void handleInput(float dt);
     void setMovementInput(const sf::Vector2f& input);
 

@@ -3,12 +3,9 @@
 #include <cmath>
 #include <string>
 
-// -------------------------------------------------------------------------
-// Конструктор
-// -------------------------------------------------------------------------
 PowerUp::PowerUp(float x, float y, Type type, float width, float height)
 : Entity(), type_(type), baseSize_(width, height) {
-    // 1. Настраиваем прямоугольник-заглушку (fallback)
+    // 1. Настраиваем прямоугольник-заглушку
     shape.setSize(baseSize_);
     shape.setOrigin(baseSize_ / 2.0f);
     shape.setPosition(x, y);
@@ -44,7 +41,7 @@ PowerUp::PowerUp(float x, float y, Type type, float width, float height)
     shape.setFillColor(fillColor);
     shape.setOutlineColor(outlineColor);
 
-    // 3. Пытаемся загрузить спрайт через базовый класс
+    // Пытаемся загрузить спрайт через базовый класс
     // setSprite() сам масштабирует текстуру под baseSize_ и установит origin в центр
     setSprite(spritePath, baseSize_);
 
@@ -53,9 +50,6 @@ PowerUp::PowerUp(float x, float y, Type type, float width, float height)
     speed = 0.0f;
 }
 
-// -------------------------------------------------------------------------
-// Остальные методы без изменений
-// -------------------------------------------------------------------------
 void PowerUp::update(float dt) { (void)dt; }
 PowerUp::Type PowerUp::getType() const { return type_; }
 int PowerUp::getHealAmount() const { return 1 + (std::rand() % 2); }

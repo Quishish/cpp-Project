@@ -178,10 +178,6 @@ int main() {
     exitText.setPosition(exitBtn.getPosition());
     exitText.setFillColor(sf::Color::White);
 
-    // ============================================================================
-    // === UI: ГЛАВНОЕ МЕНЮ (объявления переменных) ===
-    // ============================================================================
-
     // Заголовок меню
     sf::Text menuTitle("BULLET HELL", font, 72);
     sf::FloatRect titleBounds = menuTitle.getLocalBounds();
@@ -221,11 +217,6 @@ int main() {
     sf::RectangleShape menuOverlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     menuOverlay.setFillColor(sf::Color(0, 0, 0, 180));
 
-    // ============================================================================
-
-    // ============================================================================
-    // === UI: ПАУЗА (объявления переменных) ===
-    // ============================================================================
 
     // Заголовок паузы
     sf::Text pauseTitle("PAUSED", font, 72);
@@ -269,7 +260,6 @@ int main() {
     sf::RectangleShape pauseOverlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     pauseOverlay.setFillColor(sf::Color(0, 0, 0, 180));
 
-    // ============================================================================
 
     sf::RectangleShape overlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     overlay.setFillColor(sf::Color(0, 0, 0, 180));
@@ -282,9 +272,7 @@ int main() {
         txt.setFillColor(selected ? sf::Color::Yellow : sf::Color::White);
     };
 
-    // -------------------------------------------------------------------------
     // Запустить трек по индексу из перемешанного плейлиста
-    // -------------------------------------------------------------------------
     auto playShuffledTrack = [&](int index) -> bool {
         if (index < 0 || index >= static_cast<int>(shuffledPlaylist.size()))
             return false;
@@ -300,9 +288,7 @@ int main() {
         return true;
     };
 
-    // -------------------------------------------------------------------------
     // Перемешать плейлист и запустить первый трек
-    // -------------------------------------------------------------------------
     auto startRandomMusic = [&]() {
         shuffledPlaylist = musicPlaylist;  // копируем оригинал
         std::shuffle(shuffledPlaylist.begin(), shuffledPlaylist.end(), rng);  // ← перемешиваем
@@ -332,7 +318,7 @@ int main() {
                 // В MainMenu и GameOver ESC уже обрабатывается в их блоках
             }
 
-            // === ОБРАБОТКА: ГЛАВНОЕ МЕНЮ ===
+            //ОБРАБОТКА: ГЛАВНОЕ МЕНЮ
             if (state == GameState::MainMenu) {
                 // Клавиатурная навигация
                 if (event.type == sf::Event::KeyPressed) {
@@ -368,7 +354,7 @@ int main() {
                 }
             }
 
-            // === ОБРАБОТКА: ПАУЗА ===
+           // ОБРАБОТКА: ПАУЗА
             if (state == GameState::Paused) {
                 // Клавиатурная навигация
                 if (event.type == sf::Event::KeyPressed) {
@@ -459,7 +445,7 @@ int main() {
                         rapidFireTimer.restart();
                         player.setSpeed(BASE_PLAYER_SPEED);
                     } else {
-                        state = GameState::MainMenu;  // ← вернуться в меню
+                        state = GameState::MainMenu;  //  вернуться в меню
                         menuSelected = 0;             // сброс выбора
                     }
                 }
@@ -469,7 +455,7 @@ int main() {
         float dt = deltaClock.restart().asSeconds();
         shootTimer -= dt;
 
-        // === MUSIC: переключение трека, если текущий закончился ===
+        // переключение трека, если текущий закончился
         if (state == GameState::Playing && musicPlaying) {
             if (backgroundMusic.getStatus() != sf::SoundSource::Playing) {
                 // Текущий трек закончился — следующий из перемешанного списка
@@ -494,7 +480,7 @@ int main() {
             isInvulnerable = false;
         }
 
-        // === MUSIC: управление по состоянию игры ===
+        //  управление по состоянию игры
         if (state == GameState::Playing) {
             if (musicPlaying && backgroundMusic.getStatus() == sf::SoundSource::Paused) {
                 backgroundMusic.play();  // возобновить после паузы
@@ -509,7 +495,7 @@ int main() {
         if (state == GameState::Playing) {
             // После строки: state = GameState::Playing;
             if (!musicPlaying) {
-                startRandomMusic();  // ← перемешать и запустить при первом входе в игру
+                startRandomMusic();  //перемешать и запустить при первом входе в игру
             }
             sf::Vector2f moveInput(0.f, 0.f);
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) moveInput.y -= 1.f;
@@ -634,7 +620,6 @@ int main() {
                 hasRapidFire = false;
             }
 
-            // === UPDATE BUFF BARS ===
             constexpr float BAR_MAX_WIDTH = 200.f;
 
             // Щит
@@ -664,7 +649,6 @@ int main() {
                 rapidBar.setSize(sf::Vector2f(0.f, 12.f));
             }
 
-            // === COLLECT POWER-UPS ===
             for (auto it = powerups.begin(); it != powerups.end(); ) {
                 if (checkCollision(player, *it)) {
                     switch (it->getType()) {
@@ -679,16 +663,16 @@ int main() {
                         }
                         case PowerUp::Type::Shield:
                             isInvulnerable = true;      // активируем (или оставляем активным)
-                            shieldTimer.restart();      // ← КЛЮЧЕВОЕ: перезапускаем таймер
+                            shieldTimer.restart();      // перезапускаем таймер
                             break;
                         case PowerUp::Type::Speed:
                             hasSpeedBoost = true;       // активируем (или оставляем активным)
                             player.setSpeed(BASE_PLAYER_SPEED * BUFF_MULTIPLIER);  // применяем скорость
-                            speedTimer.restart();       // ← КЛЮЧЕВОЕ: перезапускаем таймер
+                            speedTimer.restart();       //  перезапускаем таймер
                             break;
                         case PowerUp::Type::RapidFire:
                             hasRapidFire = true;        // активируем (или оставляем активным)
-                            rapidFireTimer.restart();   // ← КЛЮЧЕВОЕ: перезапускаем таймер
+                            rapidFireTimer.restart();   // перезапускаем таймер
                             break;
                     }
                     it = powerups.erase(it);
@@ -736,7 +720,7 @@ int main() {
             if (player.getHP() <= 0) state = GameState::GameOver;
         }
 
-        // --- РЕНДЕРИНГ ---
+        // РЕНДЕРИНГ
         window.clear(sf::Color(20, 20, 30));
         if (bgLoaded) window.draw(bgSprite);
         for (const auto& b : pBullets) window.draw(b.shape);
@@ -753,7 +737,6 @@ int main() {
             else if (ratio > 0.3f) hpFg.setFillColor(sf::Color::Yellow);
             else hpFg.setFillColor(sf::Color::Red);
             window.draw(hpBg); window.draw(hpFg);
-            // === DRAW BUFF BARS ===
             // Рисуем только если бафф активен (ширина > 0)
             if (shieldBar.getSize().x > 0.f) {
                 window.draw(shieldBar);

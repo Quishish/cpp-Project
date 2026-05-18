@@ -10,7 +10,7 @@ Player::Player(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
     // Пробуем загрузить спрайт
     setSprite("resources/sprites/Player.png", size);
 
-    // Если спрайт не загрузился — настраиваем прямоугольник (резерв)
+    // Если спрайт не загрузился — настраиваем прямоугольник
     if (!sprite) {
         shape.setSize(size);
         shape.setFillColor(sf::Color::Green);

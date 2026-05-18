@@ -10,7 +10,7 @@ Enemy::Enemy(sf::Vector2f size, float spd, int health, sf::Vector2f pos)
     // Пробуем загрузить спрайт
     setSprite("resources/sprites/Enemy.png", size);
 
-    // Если спрайт не загрузился — используем красный прямоугольник (резерв)
+    // Если спрайт не загрузился — используем красный прямоугольник
     if (!sprite) {
         shape.setSize(size);
         shape.setFillColor(sf::Color::Red);
