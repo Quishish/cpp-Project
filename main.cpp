@@ -12,7 +12,7 @@
 #include "Utils.hpp"
 #include "powerUp.hpp"
 
-enum class GameState { Playing, GameOver };
+enum class GameState { MainMenu, Playing, GameOver };
 
 int main() {
     constexpr float GAME_WIDTH  = 1600.f;
@@ -38,8 +38,9 @@ int main() {
     updateViewport();
     window.setView(gameView);
 
-    GameState state = GameState::Playing;
-    int selectedButton = 0; // 0 = Restart, 1 = Exit
+    GameState state = GameState::MainMenu;  // ← Начинаем с меню, не с игры!
+    int selectedButton = 0;  // для Game Over
+    int menuSelected = 0;    // ← для MainMenu: 0=Start, 1=Exit
     const int MAX_HP = 3;
 
     Player player({30.f, 30.f}, 250.f, MAX_HP, GAME_SIZE / 2.f);
@@ -150,6 +151,51 @@ int main() {
     exitText.setPosition(exitBtn.getPosition());
     exitText.setFillColor(sf::Color::White);
 
+    // ============================================================================
+    // === UI: ГЛАВНОЕ МЕНЮ (объявления переменных) ===
+    // ============================================================================
+
+    // Заголовок меню
+    sf::Text menuTitle("BULLET HELL", font, 72);
+    sf::FloatRect titleBounds = menuTitle.getLocalBounds();
+    menuTitle.setOrigin(titleBounds.left + titleBounds.width / 2.f, titleBounds.top + titleBounds.height / 2.f);
+    menuTitle.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f - 100.f);
+    menuTitle.setFillColor(sf::Color::Cyan);
+
+    // Кнопка START (верхняя)
+    sf::RectangleShape startBtn(sf::Vector2f(280.f, 50.f));
+    startBtn.setOrigin(140.f, 25.f);
+    startBtn.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f + 20.f);  // по центру, выше
+    startBtn.setOutlineThickness(2.f);
+    startBtn.setOutlineColor(sf::Color::White);
+    startBtn.setFillColor(sf::Color(50, 50, 50, 200));
+
+    sf::Text startText("START GAME", font, 18);
+    sf::FloatRect startBounds = startText.getLocalBounds();
+    startText.setOrigin(startBounds.left + startBounds.width / 2.f, startBounds.top + startBounds.height / 2.f);
+    startText.setPosition(startBtn.getPosition());
+    startText.setFillColor(sf::Color::White);
+
+    // Кнопка EXIT (нижняя, под START)
+    sf::RectangleShape menuExitBtn(sf::Vector2f(280.f, 50.f));  // ← имя menuExitBtn, чтобы не конфликтовать с exitBtn из Game Over
+    menuExitBtn.setOrigin(140.f, 25.f);
+    menuExitBtn.setPosition(GAME_WIDTH / 2.f, GAME_HEIGHT / 2.f + 90.f);  // на 70px ниже startBtn
+    menuExitBtn.setOutlineThickness(2.f);
+    menuExitBtn.setOutlineColor(sf::Color::White);
+    menuExitBtn.setFillColor(sf::Color(50, 50, 50, 200));
+
+    sf::Text menuExitText("EXIT GAME", font, 18);
+    sf::FloatRect menuExitBounds = menuExitText.getLocalBounds();
+    menuExitText.setOrigin(menuExitBounds.left + menuExitBounds.width / 2.f, menuExitBounds.top + menuExitBounds.height / 2.f);
+    menuExitText.setPosition(menuExitBtn.getPosition());
+    menuExitText.setFillColor(sf::Color::White);
+
+    // Оверлей для меню (такой же как в Game Over)
+    sf::RectangleShape menuOverlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
+    menuOverlay.setFillColor(sf::Color(0, 0, 0, 180));
+
+    // ============================================================================
+
     sf::RectangleShape overlay(sf::Vector2f(GAME_WIDTH, GAME_HEIGHT));
     overlay.setFillColor(sf::Color(0, 0, 0, 180));
 
@@ -168,6 +214,42 @@ int main() {
             if (event.type == sf::Event::Resized) {
                 updateViewport();
                 window.setView(gameView);
+            }
+
+            // === ОБРАБОТКА: ГЛАВНОЕ МЕНЮ ===
+            if (state == GameState::MainMenu) {
+                // Клавиатурная навигация
+                if (event.type == sf::Event::KeyPressed) {
+                    if (event.key.code == sf::Keyboard::Up || event.key.code == sf::Keyboard::Left) {
+                        menuSelected = 0;  // START
+                    }
+                    if (event.key.code == sf::Keyboard::Down || event.key.code == sf::Keyboard::Right) {
+                        menuSelected = 1;  // EXIT
+                    }
+                    // Активация: Enter или пробел
+                    if (event.key.code == sf::Keyboard::Enter || event.key.code == sf::Keyboard::Return || event.key.code == sf::Keyboard::Space) {
+                        if (menuSelected == 0) {
+                            state = GameState::Playing;  // Начать игру
+                        } else {
+                            window.close();  // Выйти
+                        }
+                    }
+                }
+                
+                // Мышь: наведение + клик
+                if (event.type == sf::Event::MouseButtonPressed && event.mouseButton.button == sf::Mouse::Left) {
+                    sf::Vector2i mPos = sf::Mouse::getPosition(window);
+                    sf::Vector2f worldPos = window.mapPixelToCoords(mPos, window.getView());
+                    
+                    if (startBtn.getGlobalBounds().contains(worldPos)) {
+                        menuSelected = 0;
+                        state = GameState::Playing;
+                    }
+                    if (menuExitBtn.getGlobalBounds().contains(worldPos)) {
+                        menuSelected = 1;
+                        window.close();
+                    }
+                }
             }
 
             if (state == GameState::GameOver) {
@@ -208,7 +290,8 @@ int main() {
                         rapidFireTimer.restart();
                         player.setSpeed(BASE_PLAYER_SPEED);
                     } else {
-                        window.close();
+                        state = GameState::MainMenu;  // ← вернуться в меню
+                        menuSelected = 0;             // сброс выбора
                     }
                 }
             }
@@ -475,25 +558,32 @@ int main() {
             // === DRAW BUFF BARS ===
             // Рисуем только если бафф активен (ширина > 0)
             if (shieldBar.getSize().x > 0.f) {
-                window.draw(buffBarBg);  // общий фон
                 window.draw(shieldBar);
                 window.draw(shieldLabel);
             }
             if (speedBar.getSize().x > 0.f) {
-                window.draw(buffBarBg);  // можно один фон, если бары не перекрываются
                 window.draw(speedBar);
                 window.draw(speedLabel);
             }
             if (rapidBar.getSize().x > 0.f) {
-                window.draw(buffBarBg);
                 window.draw(rapidBar);
                 window.draw(rapidLabel);
             }
-        } else {
-            // Обновляем подсветку кнопок перед отрисовкой
+        } else if (state == GameState::MainMenu) {
+            // Обновляем визуал кнопок
+            updateButtonVisuals(startBtn, startText, menuSelected == 0);
+            updateButtonVisuals(menuExitBtn, menuExitText, menuSelected == 1);
+            
+            // Рисуем меню
+            window.draw(menuOverlay);
+            window.draw(menuTitle);
+            window.draw(startBtn); window.draw(startText);
+            window.draw(menuExitBtn); window.draw(menuExitText);
+            
+        } else if (state == GameState::GameOver) {
+            // Ваш существующий код отрисовки Game Over
             updateButtonVisuals(restartBtn, restartText, selectedButton == 0);
             updateButtonVisuals(exitBtn, exitText, selectedButton == 1);
-
             window.draw(overlay);
             window.draw(restartBtn); window.draw(restartText);
             window.draw(exitBtn);    window.draw(exitText);

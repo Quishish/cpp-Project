@@ -19,7 +19,7 @@ void Entity::setSprite(const std::string& texturePath, sf::Vector2f size) {
 
     sprite = std::make_shared<sf::Sprite>(*textureCache[texturePath]);
     sf::Vector2f texSize = sprite->getLocalBounds().getSize();
-    sprite->setScale(size.x / texSize.x, size.y / texSize.y);
+    // sprite->setScale(size.x / texSize.x, size.y / texSize.y);
     sprite->setOrigin(size / 2.f);
     halfSize = size / 2.f;
 
